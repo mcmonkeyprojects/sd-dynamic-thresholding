@@ -10,6 +10,8 @@ This works by clamping latents between steps. You can read more [here](https://g
 
 ![img](github/cat_demo_1.jpg)
 
+![img](github/ui.png)
+
 --------------
 
 --------------
