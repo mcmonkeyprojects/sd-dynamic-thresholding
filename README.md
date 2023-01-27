@@ -4,7 +4,7 @@
 
 Extension for the [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) that enables a way to use higher CFG Scales without color issues.
 
-This works by clamping latents between steps. You can read more [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/3962) or [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/3268).
+This works by clamping latents between steps. You can read more [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/3962) or [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/3268) or [this tweet](https://twitter.com/Birchlabs/status/1582165379832348672).
 
 ### Credit
 
@@ -27,7 +27,7 @@ The core functionality of this PR was mainly developed by [Birch-san](https://gi
 <!--- -EITHER- Option **A**:
     - go to the `Available` tab with
     - click `Load from` (with the default list)
-    - Scroll down to find `Dynamic Thresholding`, or use `CTRL+F` to find it
+    - Scroll down to find `Dynamic Thresholding (CFG Scale Fix)`, or use `CTRL+F` to find it
 - -OR- Option **B**: -->
     - Click on `Install from URL`
     - Copy/paste this project's URL into the `URL for extension's git repository` textbox: `https://github.com/mcmonkeyprojects/sd-dynamic-thresholding`
