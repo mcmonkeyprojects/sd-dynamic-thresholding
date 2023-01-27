@@ -29,6 +29,8 @@ View at <https://sd.mcmonkey.org/dynthresh/>.
 
 ![img](github/grid_preview.png)
 
+(Was generated via [this YAML config](https://gist.github.com/mcmonkey4eva/fccd29172f44424dfc0217a482c824f6) for the [Infinite Grid Generator](https://github.com/mcmonkeyprojects/sd-infinity-grid-generator-script))
+
 --------------
 
 ### Installation
