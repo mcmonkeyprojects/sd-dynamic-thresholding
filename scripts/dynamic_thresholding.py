@@ -26,44 +26,50 @@ class Script(scripts.Script):
         return "Dynamic Thresholding (CFG Scale Fix)"
 
     def show(self, is_img2img):
-        return True
+        return scripts.AlwaysVisible
 
     def ui(self, is_img2img):
-        gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \nSet '**Top percentile**' to how much clamping you want. 90% is good is normal, 100% clamps so hard it's like the mimic scale is the real scale. This scales as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n...  \n")
-        mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0)
-        threshold_percentile = gr.Slider(minimum=90.0, value=90.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
-        with gr.Accordion("Advanced Options", open=False):
-            gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is normal.  \nSetting **Mimic** to '**Cosine Down**' seems to produce better results. Needs more testing.  \nSetting **CFG** to '**Linear Down**' produces results that are just like the raw high scale CFG but with better quality fine details.  \nOther setting combos produce interesting results as well.  \n... \n")
-            mimic_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="Mimic Scale Scheduler")
-            cfg_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="CFG Scale Scheduler")
-        return [mimic_scale, threshold_percentile, mimic_mode, cfg_mode]
+        enabled = gr.Checkbox(value=False, label="Enable Dynamic Thresholding (CFG Scale Fix)")
+        # "Dynamic Thresholding (CFG Scale Fix)"
+        accordion = gr.Group(visible=False)
+        with accordion:
+            gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \nSet '**Top percentile**' to how much clamping you want. 90% is good is normal, 100% clamps so hard it's like the mimic scale is the real scale. This scales as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n...  \n")
+            mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0)
+            threshold_percentile = gr.Slider(minimum=90.0, value=90.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
+            with gr.Accordion("Dynamic Thresholding Advanced Options", open=False):
+                gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is normal.  \nSetting **Mimic** to '**Cosine Down**' seems to produce better results. Needs more testing.  \nSetting **CFG** to '**Linear Down**' produces results that are just like the raw high scale CFG but with better quality fine details.  \nOther setting combos produce interesting results as well.  \n... \n")
+                mimic_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="Mimic Scale Scheduler")
+                cfg_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="CFG Scale Scheduler")
+        enabled.change(
+            fn=lambda x: {"visible": x, "__type__": "update"},
+            inputs=[enabled],
+            outputs=[accordion],
+            show_progress = False)
+        return [enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode]
 
-    def run(self, p, mimic_scale, threshold_percentile, mimic_mode, cfg_mode):
+    def process(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode):
+        if not enabled:
+            return
         # Note: the random number is to protect the edge case of multiple simultaneous runs with different settings
         fixed_sampler_name = f"{p.sampler_name}_dynthres{random.randrange(100)}"
-        try:
-            # Percentage to portion
-            threshold_percentile *= 0.01
-            # Make a placeholder sampler
-            sampler = sd_samplers.all_samplers_map[p.sampler_name]
-            def newConstructor(model):
-                result = sampler.constructor(model)
-                cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, p.steps)
-                result.model_wrap_cfg = cfg
-                return result
-            newSampler = sd_samplers.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
-            sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
-            # Prep data
-            p = copy(p)
-            p.sampler_name = fixed_sampler_name
-            # Run
-            proc = process_images(p)
-            # Cleanup
-            del sd_samplers.all_samplers_map[fixed_sampler_name]
-            return proc
-        except Exception as e:
-            del sd_samplers.all_samplers_map[fixed_sampler_name]
-            raise e
+        p.fixed_sampler_name = fixed_sampler_name
+        # Percentage to portion
+        threshold_percentile *= 0.01
+        # Make a placeholder sampler
+        sampler = sd_samplers.all_samplers_map[p.sampler_name]
+        def newConstructor(model):
+            result = sampler.constructor(model)
+            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, p.steps)
+            result.model_wrap_cfg = cfg
+            return result
+        newSampler = sd_samplers.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
+        p.sampler_name = fixed_sampler_name
+        sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
+
+    def postprocess(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode):
+        if not enabled:
+            return
+        del sd_samplers.all_samplers_map[p.fixed_sampler_name]
 
 ######################### Implementation logic #########################
 

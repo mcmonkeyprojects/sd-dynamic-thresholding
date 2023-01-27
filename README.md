@@ -42,7 +42,7 @@ The core functionality of this PR was mainly developed by [Birch-san](https://gi
 
 - Install the extension and restart.
 - Go to txt2img or img2img
-- Select `Script` at the bottom and select `Dynamic Thresholding (CFG Scale Fix)`
+- Check the `Enable Dynamic Thresholding (CFG Scale Fix)` box
 - Read the info on-page and set the sliders where you want em.
 - Click generate.
 
