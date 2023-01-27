@@ -6,6 +6,10 @@ Extension for the [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTO
 
 This works by clamping latents between steps. You can read more [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/3962) or [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/3268).
 
+### Credit
+
+The core functionality of this PR was mainly developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva).
+
 ### Examples
 
 ![img](github/cat_demo_1.jpg)
