@@ -20,6 +20,15 @@ The core functionality of this PR was mainly developed by [Birch-san](https://gi
 
 ![img](github/ui.png)
 
+
+--------------
+
+### Demo Grid
+
+View at <https://sd.mcmonkey.org/dynthresh/>.
+
+![img](github/grid_preview.png)
+
 --------------
 
 ### Installation
