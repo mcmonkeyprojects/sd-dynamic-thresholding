@@ -14,10 +14,10 @@ import gradio as gr
 import random
 import torch
 import math
-from copy import copy
 from modules import sd_samplers, scripts
-from modules.processing import process_images, Processed
-from modules.shared import opts
+
+######################### Data values #########################
+VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"]
 
 ######################### Script class entrypoint #########################
 class Script(scripts.Script):
@@ -38,8 +38,8 @@ class Script(scripts.Script):
             threshold_percentile = gr.Slider(minimum=90.0, value=90.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
             with gr.Accordion("Dynamic Thresholding Advanced Options", open=False):
                 gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is normal.  \nSetting **Mimic** to '**Cosine Down**' seems to produce better results. Needs more testing.  \nSetting **CFG** to '**Linear Down**' produces results that are just like the raw high scale CFG but with better quality fine details.  \nOther setting combos produce interesting results as well.  \n... \n")
-                mimic_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="Mimic Scale Scheduler")
-                cfg_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="CFG Scale Scheduler")
+                mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler")
+                cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
         enabled.change(
             fn=lambda x: {"visible": x, "__type__": "update"},
             inputs=[enabled],
@@ -47,9 +47,16 @@ class Script(scripts.Script):
             show_progress = False)
         return [enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode]
 
-    def process(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode):
+    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, batch_number, prompts, seeds, subseeds):
+        enabled = p.dynthres_enabled if hasattr(p, 'dynthres_enabled') else enabled
         if not enabled:
             return
+        if p.sampler_name in ["DDIM", "PLMS"]:
+            raise RuntimeError(f"Cannot use sampler {p.sampler_name} with Dynamic Thresholding")
+        mimic_scale = p.dynthres_mimic_scale if hasattr(p, 'dynthres_mimic_scale') else mimic_scale
+        threshold_percentile = p.dynthres_threshold_percentile if hasattr(p, 'dynthres_threshold_percentile') else threshold_percentile
+        mimic_mode = p.dynthres_mimic_mode if hasattr(p, 'dynthres_mimic_mode') else mimic_mode
+        cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
         # Note: the random number is to protect the edge case of multiple simultaneous runs with different settings
         fixed_sampler_name = f"{p.sampler_name}_dynthres{random.randrange(100)}"
         p.fixed_sampler_name = fixed_sampler_name
@@ -66,7 +73,7 @@ class Script(scripts.Script):
         p.sampler_name = fixed_sampler_name
         sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
 
-    def postprocess(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode):
+    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, batch_number, images):
         if not enabled:
             return
         del sd_samplers.all_samplers_map[p.fixed_sampler_name]
