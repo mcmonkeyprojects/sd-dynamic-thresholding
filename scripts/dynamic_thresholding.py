@@ -13,6 +13,7 @@
 import gradio as gr
 import random
 import torch
+import math
 from copy import copy
 from modules import sd_samplers, scripts
 from modules.processing import process_images, Processed
@@ -28,12 +29,16 @@ class Script(scripts.Script):
         return True
 
     def ui(self, is_img2img):
-        help_info = gr.Markdown("### Dynamic Thresholding (CFG Scale Fix)  \nThresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \nSet '**Top percentile**' to how much clamping you want. 90% is good is normal, 100% clamps so hard it's like the mimic scale is the real scale. This scales as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n...  \n")
+        gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \nSet '**Top percentile**' to how much clamping you want. 90% is good is normal, 100% clamps so hard it's like the mimic scale is the real scale. This scales as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n...  \n")
         mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0)
         threshold_percentile = gr.Slider(minimum=90.0, value=90.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
-        return [help_info, mimic_scale, threshold_percentile]
+        with gr.Accordion("Advanced Options", open=False):
+            gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is normal.  \nSetting **Mimic** to '**Cosine Down**' seems to produce better results. Needs more testing.  \nSetting **CFG** to '**Linear Down**' produces results that are just like the raw high scale CFG but with better quality fine details.  \nOther setting combos produce interesting results as well.  \n... \n")
+            mimic_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="Mimic Scale Scheduler")
+            cfg_mode = gr.Dropdown(["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"], value="Constant", label="CFG Scale Scheduler")
+        return [mimic_scale, threshold_percentile, mimic_mode, cfg_mode]
 
-    def run(self, p, help_info, mimic_scale, threshold_percentile):
+    def run(self, p, mimic_scale, threshold_percentile, mimic_mode, cfg_mode):
         # Note: the random number is to protect the edge case of multiple simultaneous runs with different settings
         fixed_sampler_name = f"{p.sampler_name}_dynthres{random.randrange(100)}"
         try:
@@ -43,7 +48,7 @@ class Script(scripts.Script):
             sampler = sd_samplers.all_samplers_map[p.sampler_name]
             def newConstructor(model):
                 result = sampler.constructor(model)
-                cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile)
+                cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, p.steps)
                 result.model_wrap_cfg = cfg
                 return result
             newSampler = sd_samplers.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
@@ -63,16 +68,46 @@ class Script(scripts.Script):
 ######################### Implementation logic #########################
 
 class CustomCFGDenoiser(sd_samplers.CFGDenoiser):
-    def __init__(self, model, mimic_scale, threshold_percentile):
+    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, maxSteps):
         super().__init__(model)
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
-        
+        self.mimic_mode = mimic_mode
+        self.cfg_mode = cfg_mode
+        self.maxSteps = maxSteps
+
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
         return self.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list)
 
     def dynthresh(self, cond, uncond, cond_scale, conds_list):
+        mimicScale = self.mimic_scale
+        match self.mimic_mode:
+            case "Constant":
+                pass
+            case "Linear Down":
+                mimicScale *= 1.0 - (self.step / self.maxSteps)
+            case "Cosine Down":
+                mimicScale *= 1.0 - math.cos(self.step / self.maxSteps)
+            case "Linear Up":
+                mimicScale *= self.step / self.maxSteps
+                pass
+            case "Cosine Up":
+                mimicScale *= math.cos(self.step / self.maxSteps)
+                pass
+        match self.cfg_mode:
+            case "Constant":
+                pass
+            case "Linear Down":
+                cond_scale *= 1.0 - (self.step / self.maxSteps)
+            case "Cosine Down":
+                cond_scale *= 1.0 - math.cos(self.step / self.maxSteps)
+            case "Linear Up":
+                cond_scale *= self.step / self.maxSteps
+                pass
+            case "Cosine Up":
+                cond_scale *= math.cos(self.step / self.maxSteps)
+                pass
         # uncond shape is (batch, 4, height, width)
         conds_per_batch = cond.shape[0] / uncond.shape[0]
         assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
@@ -82,7 +117,7 @@ class CustomCFGDenoiser(sd_samplers.CFGDenoiser):
         weights = torch.tensor(conds_list).select(2, 1)
         weights = weights.reshape(*weights.shape, 1, 1, 1).to(diff.device)
         diff_weighted = (diff * weights).sum(1)
-        dynthresh_target = uncond + diff_weighted * self.mimic_scale
+        dynthresh_target = uncond + diff_weighted * mimicScale
 
         dt_flattened = dynthresh_target.flatten(2)
         dt_means = dt_flattened.mean(dim=2).unsqueeze(2)
