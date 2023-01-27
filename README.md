@@ -46,6 +46,10 @@ The core functionality of this PR was mainly developed by [Birch-san](https://gi
 - Read the info on-page and set the sliders where you want em.
 - Click generate.
 
+### Supported Extensions
+
+- This can be configured within the [Infinity Grid Generator](https://github.com/mcmonkeyprojects/sd-infinity-grid-generator-script#supported-extensions) extension, see the readme of that project for details.
+
 ----------------------
 
 ### Licensing pre-note:
