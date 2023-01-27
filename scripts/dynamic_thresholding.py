@@ -70,36 +70,36 @@ class CustomCFGDenoiser(sd_samplers.CFGDenoiser):
         
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
-        return dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list, self.mimic_scale, self.threshold_percentile)
+        return self.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list)
 
-def dynthresh(cond, uncond, cond_scale, conds_list, mimic_scale, threshold_percentile):
-    # uncond shape is (batch, 4, height, width)
-    conds_per_batch = cond.shape[0] / uncond.shape[0]
-    assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
-    cond_stacked = cond.reshape((-1, int(conds_per_batch)) + uncond.shape[1:])
-    diff = cond_stacked - uncond.unsqueeze(1)
-    # conds_list shape is (batch, cond, 2)
-    weights = torch.tensor(conds_list).select(2, 1)
-    weights = weights.reshape(*weights.shape, 1, 1, 1).to(diff.device)
-    diff_weighted = (diff * weights).sum(1)
-    dynthresh_target = uncond + diff_weighted * mimic_scale
+    def dynthresh(self, cond, uncond, cond_scale, conds_list):
+        # uncond shape is (batch, 4, height, width)
+        conds_per_batch = cond.shape[0] / uncond.shape[0]
+        assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
+        cond_stacked = cond.reshape((-1, int(conds_per_batch)) + uncond.shape[1:])
+        diff = cond_stacked - uncond.unsqueeze(1)
+        # conds_list shape is (batch, cond, 2)
+        weights = torch.tensor(conds_list).select(2, 1)
+        weights = weights.reshape(*weights.shape, 1, 1, 1).to(diff.device)
+        diff_weighted = (diff * weights).sum(1)
+        dynthresh_target = uncond + diff_weighted * self.mimic_scale
 
-    dt_flattened = dynthresh_target.flatten(2)
-    dt_means = dt_flattened.mean(dim=2).unsqueeze(2)
-    dt_recentered = dt_flattened - dt_means
-    dt_max = dt_recentered.abs().max(dim=2).values.unsqueeze(2)
+        dt_flattened = dynthresh_target.flatten(2)
+        dt_means = dt_flattened.mean(dim=2).unsqueeze(2)
+        dt_recentered = dt_flattened - dt_means
+        dt_max = dt_recentered.abs().max(dim=2).values.unsqueeze(2)
 
-    ut = uncond + diff_weighted * cond_scale
-    ut_flattened = ut.flatten(2)
-    ut_means = ut_flattened.mean(dim=2).unsqueeze(2)
-    ut_centered = ut_flattened - ut_means
+        ut = uncond + diff_weighted * cond_scale
+        ut_flattened = ut.flatten(2)
+        ut_means = ut_flattened.mean(dim=2).unsqueeze(2)
+        ut_centered = ut_flattened - ut_means
 
-    ut_q = torch.quantile(ut_centered.abs(), threshold_percentile, dim=2).unsqueeze(2)
-    s = torch.maximum(ut_q, dt_max)
-    t_clamped = ut_centered.clamp(-s, s)
-    t_normalized = t_clamped / s
-    t_renormalized = t_normalized * dt_max
+        ut_q = torch.quantile(ut_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
+        s = torch.maximum(ut_q, dt_max)
+        t_clamped = ut_centered.clamp(-s, s)
+        t_normalized = t_clamped / s
+        t_renormalized = t_normalized * dt_max
 
-    uncentered = t_renormalized + ut_means
-    unflattened = uncentered.unflatten(2, dynthresh_target.shape[2:])
-    return unflattened
+        uncentered = t_renormalized + ut_means
+        unflattened = uncentered.unflatten(2, dynthresh_target.shape[2:])
+        return unflattened
