@@ -101,7 +101,7 @@ class CustomCFGDenoiser(sd_samplers.CFGDenoiser):
         denoised_uncond = x_out[-uncond.shape[0]:]
         return self.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list)
 
-    def dynthresh(self, cond, uncond, cond_scale, conds_list):
+    def dynthresh(self, cond, uncond, cfgScale, conds_list):
         mimicScale = self.mimic_scale
         match self.mimic_mode:
             case "Constant":
@@ -120,42 +120,50 @@ class CustomCFGDenoiser(sd_samplers.CFGDenoiser):
             case "Constant":
                 pass
             case "Linear Down":
-                cond_scale *= 1.0 - (self.step / self.maxSteps)
+                cfgScale *= 1.0 - (self.step / self.maxSteps)
             case "Cosine Down":
-                cond_scale *= 1.0 - math.cos(self.step / self.maxSteps)
+                cfgScale *= 1.0 - math.cos(self.step / self.maxSteps)
             case "Linear Up":
-                cond_scale *= self.step / self.maxSteps
+                cfgScale *= self.step / self.maxSteps
                 pass
             case "Cosine Up":
-                cond_scale *= math.cos(self.step / self.maxSteps)
+                cfgScale *= math.cos(self.step / self.maxSteps)
                 pass
         # uncond shape is (batch, 4, height, width)
         conds_per_batch = cond.shape[0] / uncond.shape[0]
         assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
         cond_stacked = cond.reshape((-1, int(conds_per_batch)) + uncond.shape[1:])
-        diff = cond_stacked - uncond.unsqueeze(1)
         # conds_list shape is (batch, cond, 2)
         weights = torch.tensor(conds_list).select(2, 1)
-        weights = weights.reshape(*weights.shape, 1, 1, 1).to(diff.device)
-        diff_weighted = (diff * weights).sum(1)
-        dynthresh_target = uncond + diff_weighted * mimicScale
+        weights = weights.reshape(*weights.shape, 1, 1, 1).to(uncond.device)
 
-        dt_flattened = dynthresh_target.flatten(2)
-        dt_means = dt_flattened.mean(dim=2).unsqueeze(2)
-        dt_recentered = dt_flattened - dt_means
-        dt_max = dt_recentered.abs().max(dim=2).values.unsqueeze(2)
+        ### Normal first part of the CFG Scale logic, basically
+        diff = cond_stacked - uncond.unsqueeze(1)
+        relative = (diff * weights).sum(1)
 
-        ut = uncond + diff_weighted * cond_scale
-        ut_flattened = ut.flatten(2)
-        ut_means = ut_flattened.mean(dim=2).unsqueeze(2)
-        ut_centered = ut_flattened - ut_means
+        ### Get the normal result for both mimic and normal scale
+        mim_target = uncond + relative * mimicScale
+        cfg_target = uncond + relative * cfgScale
+        ### If we weren't doing mimic scale, we'd just return cfg_target here
 
-        ut_q = torch.quantile(ut_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
-        s = torch.maximum(ut_q, dt_max)
-        t_clamped = ut_centered.clamp(-s, s)
-        t_normalized = t_clamped / s
-        t_renormalized = t_normalized * dt_max
+        ### Now recenter the values relative to their average rather than absolute, to allow scaling from average
+        mim_flattened = mim_target.flatten(2)
+        cfg_flattened = cfg_target.flatten(2)
+        mim_means = mim_flattened.mean(dim=2).unsqueeze(2)
+        cfg_means = cfg_flattened.mean(dim=2).unsqueeze(2)
+        mim_centered = mim_flattened - mim_means
+        cfg_centered = cfg_flattened - cfg_means
 
-        uncentered = t_renormalized + ut_means
-        unflattened = uncentered.unflatten(2, dynthresh_target.shape[2:])
-        return unflattened
+        ### Get the maximum value of all datapoints (with an optional threshold percentile on the uncond)
+        mim_max = mim_centered.abs().max(dim=2).values.unsqueeze(2)
+        cfg_max = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
+        actualMax = torch.maximum(cfg_max, mim_max)
+
+        ### Clamp to the max
+        cfg_clamped = cfg_centered.clamp(-actualMax, actualMax)
+        ### Now shrink from the max to normalize and grow to the mimic scale (instead of the CFG scale)
+        cfg_renormalized = (cfg_clamped / actualMax) * mim_max
+
+        ### Now add it back onto the averages to get into real scale again and return
+        result = cfg_renormalized + cfg_means
+        return result.unflatten(2, mim_target.shape[2:])
