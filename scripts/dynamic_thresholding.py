@@ -47,6 +47,8 @@ class Script(scripts.Script):
             show_progress = False)
         return [enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode]
 
+    last_id = 0
+
     def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, batch_number, prompts, seeds, subseeds):
         enabled = p.dynthres_enabled if hasattr(p, 'dynthres_enabled') else enabled
         if not enabled:
@@ -57,9 +59,9 @@ class Script(scripts.Script):
         threshold_percentile = p.dynthres_threshold_percentile if hasattr(p, 'dynthres_threshold_percentile') else threshold_percentile
         mimic_mode = p.dynthres_mimic_mode if hasattr(p, 'dynthres_mimic_mode') else mimic_mode
         cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
-        # Note: the random number is to protect the edge case of multiple simultaneous runs with different settings
-        fixed_sampler_name = f"{p.sampler_name}_dynthres{random.randrange(100)}"
-        p.fixed_sampler_name = fixed_sampler_name
+        # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
+        Script.last_id += 1
+        fixed_sampler_name = f"{p.sampler_name}_dynthres{Script.last_id}"
         # Percentage to portion
         threshold_percentile *= 0.01
         # Make a placeholder sampler
@@ -70,13 +72,19 @@ class Script(scripts.Script):
             result.model_wrap_cfg = cfg
             return result
         newSampler = sd_samplers.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
+        # Apply for usage
+        p.orig_sampler_name = p.sampler_name
         p.sampler_name = fixed_sampler_name
+        p.fixed_sampler_name = fixed_sampler_name
         sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
 
     def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, batch_number, images):
-        if not enabled:
+        if not enabled or not hasattr(p, 'orig_sampler_name'):
             return
+        p.sampler_name = p.orig_sampler_name
         del sd_samplers.all_samplers_map[p.fixed_sampler_name]
+        del p.orig_sampler_name
+        del p.fixed_sampler_name
 
 ######################### Implementation logic #########################
 
