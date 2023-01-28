@@ -33,11 +33,11 @@ class Script(scripts.Script):
         # "Dynamic Thresholding (CFG Scale Fix)"
         accordion = gr.Group(visible=False)
         with accordion:
-            gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \nSet '**Top percentile**' to how much clamping you want. 90% is good is normal, 100% clamps so hard it's like the mimic scale is the real scale. This scales as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n...  \n")
+            gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \n...  \n")
             mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0)
-            threshold_percentile = gr.Slider(minimum=90.0, value=90.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
             with gr.Accordion("Dynamic Thresholding Advanced Options", open=False):
-                gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is normal.  \nSetting **Mimic** to '**Cosine Down**' seems to produce better results. Needs more testing.  \nSetting **CFG** to '**Linear Down**' produces results that are just like the raw high scale CFG but with better quality fine details.  \nOther setting combos produce interesting results as well.  \n... \n")
+                gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is default.  \nIn testing, setting both to '**Linear Down**' or '**Constant**' seems to produce best results.  \nOther setting combos produce interesting results as well.  \nSet '**Top percentile**' to how much clamping you want. 90% is slightly underclamped, 100% clamps completely and tries to stop any/all burn. The effect tends to scale as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n... \n")
+                threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
                 mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
         enabled.change(
