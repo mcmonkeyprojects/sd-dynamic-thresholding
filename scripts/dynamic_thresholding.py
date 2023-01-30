@@ -36,20 +36,22 @@ class Script(scripts.Script):
             gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \n...  \n")
             mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0)
             with gr.Accordion("Dynamic Thresholding Advanced Options", open=False):
-                gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is default.  \nIn testing, setting both to '**Linear Down**' or '**Constant**' seems to produce best results.  \nOther setting combos produce interesting results as well.  \nSet '**Top percentile**' to how much clamping you want. 90% is slightly underclamped, 100% clamps completely and tries to stop any/all burn. The effect tends to scale as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \n... \n")
+                gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is default.  \nIn testing, setting both to '**Linear Down**' or '**Constant**' seems to produce best results.  \nOther setting combos produce interesting results as well.  \nSet '**Top percentile**' to how much clamping you want. 90% is slightly underclamped, 100% clamps completely and tries to stop any/all burn. The effect tends to scale as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \nSet '**Minimum value of the Scale Scheduler**' only if you've set the scale scheduler to something other than '**Constant**', to set the lowest value it will go to (default 0, but higher values are likely better).  \n... \n")
                 threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
                 mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler")
+                mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
+                cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler")
         enabled.change(
             fn=lambda x: {"visible": x, "__type__": "update"},
             inputs=[enabled],
             outputs=[accordion],
             show_progress = False)
-        return [enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode]
+        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min]
 
     last_id = 0
 
-    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, batch_number, prompts, seeds, subseeds):
+    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, batch_number, prompts, seeds, subseeds):
         enabled = p.dynthres_enabled if hasattr(p, 'dynthres_enabled') else enabled
         if not enabled:
             return
@@ -58,7 +60,9 @@ class Script(scripts.Script):
         mimic_scale = p.dynthres_mimic_scale if hasattr(p, 'dynthres_mimic_scale') else mimic_scale
         threshold_percentile = p.dynthres_threshold_percentile if hasattr(p, 'dynthres_threshold_percentile') else threshold_percentile
         mimic_mode = p.dynthres_mimic_mode if hasattr(p, 'dynthres_mimic_mode') else mimic_mode
+        mimic_scale_min = p.dynthres_mimic_scale_min if hasattr(p, 'dynthres_mimic_scale_min') else mimic_scale_min
         cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
+        cfg_scale_min = p.dynthres_cfg_scale_min if hasattr(p, 'dynthres_cfg_scale_min') else cfg_scale_min
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
         fixed_sampler_name = f"{p.sampler_name}_dynthres{Script.last_id}"
@@ -68,7 +72,7 @@ class Script(scripts.Script):
         sampler = sd_samplers.all_samplers_map[p.sampler_name]
         def newConstructor(model):
             result = sampler.constructor(model)
-            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, p.steps)
+            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, p.steps)
             result.model_wrap_cfg = cfg
             return result
         newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
@@ -78,7 +82,7 @@ class Script(scripts.Script):
         p.fixed_sampler_name = fixed_sampler_name
         sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
 
-    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, batch_number, images):
+    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, batch_number, images):
         if not enabled or not hasattr(p, 'orig_sampler_name'):
             return
         p.sampler_name = p.orig_sampler_name
@@ -89,20 +93,22 @@ class Script(scripts.Script):
 ######################### Implementation logic #########################
 
 class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
-    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, maxSteps):
+    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, maxSteps):
         super().__init__(model)
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
         self.cfg_mode = cfg_mode
         self.maxSteps = maxSteps
+        self.cfg_scale_min = cfg_scale_min
+        self.mimic_scale_min = mimic_scale_min
 
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
         return self.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list)
 
     def dynthresh(self, cond, uncond, cfgScale, conds_list):
-        mimicScale = self.mimic_scale
+        mimicScale = self.mimic_scale - self.mimic_scale_min
         if self.mimic_mode == "Constant":
             pass
         elif self.mimic_mode == "Linear Down":
@@ -113,6 +119,8 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
             mimicScale *= self.step / self.maxSteps
         elif self.mimic_mode == "Cosine Up":
             mimicScale *= math.cos(self.step / self.maxSteps)
+        mimicScale += self.mimic_scale_min
+        cfgScale -= self.cfg_scale_min
         if self.cfg_mode == "Constant":
             pass
         elif self.cfg_mode == "Linear Down":
@@ -123,6 +131,7 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
             cfgScale *= self.step / self.maxSteps
         elif self.cfg_mode == "Cosine Up":
             cfgScale *= math.cos(self.step / self.maxSteps)
+        cfgScale += self.cfg_scale_min
         # uncond shape is (batch, 4, height, width)
         conds_per_batch = cond.shape[0] / uncond.shape[0]
         assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
