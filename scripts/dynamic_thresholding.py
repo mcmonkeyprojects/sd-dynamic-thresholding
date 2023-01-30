@@ -4,7 +4,7 @@
 # Author: Alex 'mcmonkey' Goodwin
 # GitHub URL: https://github.com/mcmonkeyprojects/sd-dynamic-thresholding
 # Created: 2022/01/26
-# Last updated: 2023/01/26
+# Last updated: 2023/01/30
 #
 # For usage help, view the README.md file in the extension root, or via the GitHub page.
 #
@@ -14,7 +14,7 @@ import gradio as gr
 import random
 import torch
 import math
-from modules import sd_samplers, scripts
+from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
 VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"]
@@ -71,7 +71,7 @@ class Script(scripts.Script):
             cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, p.steps)
             result.model_wrap_cfg = cfg
             return result
-        newSampler = sd_samplers.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
+        newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
         # Apply for usage
         p.orig_sampler_name = p.sampler_name
         p.sampler_name = fixed_sampler_name
@@ -88,7 +88,7 @@ class Script(scripts.Script):
 
 ######################### Implementation logic #########################
 
-class CustomCFGDenoiser(sd_samplers.CFGDenoiser):
+class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
     def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, cfg_mode, maxSteps):
         super().__init__(model)
         self.mimic_scale = mimic_scale
