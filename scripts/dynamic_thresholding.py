@@ -106,32 +106,25 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
         return self.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list)
+    
+    def interpretScale(self, scale, mode, min):
+        scale -= min
+        if mode == "Constant":
+            pass
+        elif mode == "Linear Down":
+            scale *= 1.0 - (self.step / self.maxSteps)
+        elif mode == "Cosine Down":
+            scale *= 1.0 - math.cos(self.step / self.maxSteps)
+        elif mode == "Linear Up":
+            scale *= self.step / self.maxSteps
+        elif mode == "Cosine Up":
+            scale *= math.cos(self.step / self.maxSteps)
+        scale += min
+        return scale
 
     def dynthresh(self, cond, uncond, cfgScale, conds_list):
-        mimicScale = self.mimic_scale - self.mimic_scale_min
-        if self.mimic_mode == "Constant":
-            pass
-        elif self.mimic_mode == "Linear Down":
-            mimicScale *= 1.0 - (self.step / self.maxSteps)
-        elif self.mimic_mode == "Cosine Down":
-            mimicScale *= 1.0 - math.cos(self.step / self.maxSteps)
-        elif self.mimic_mode == "Linear Up":
-            mimicScale *= self.step / self.maxSteps
-        elif self.mimic_mode == "Cosine Up":
-            mimicScale *= math.cos(self.step / self.maxSteps)
-        mimicScale += self.mimic_scale_min
-        cfgScale -= self.cfg_scale_min
-        if self.cfg_mode == "Constant":
-            pass
-        elif self.cfg_mode == "Linear Down":
-            cfgScale *= 1.0 - (self.step / self.maxSteps)
-        elif self.cfg_mode == "Cosine Down":
-            cfgScale *= 1.0 - math.cos(self.step / self.maxSteps)
-        elif self.cfg_mode == "Linear Up":
-            cfgScale *= self.step / self.maxSteps
-        elif self.cfg_mode == "Cosine Up":
-            cfgScale *= math.cos(self.step / self.maxSteps)
-        cfgScale += self.cfg_scale_min
+        mimicScale = self.interpretScale(self.mimic_scale, self.mimic_mode, self.mimic_scale_min)
+        cfgScale = self.interpretScale(cfgScale, self.cfg_mode, self.cfg_scale_min)
         # uncond shape is (batch, 4, height, width)
         conds_per_batch = cond.shape[0] / uncond.shape[0]
         assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
