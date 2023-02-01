@@ -63,6 +63,7 @@ class Script(scripts.Script):
         mimic_scale_min = p.dynthres_mimic_scale_min if hasattr(p, 'dynthres_mimic_scale_min') else mimic_scale_min
         cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
         cfg_scale_min = p.dynthres_cfg_scale_min if hasattr(p, 'dynthres_cfg_scale_min') else cfg_scale_min
+        experiment_mode = p.dynthres_experiment_mode if hasattr(p, 'dynthres_experiment_mode') else 0
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
         fixed_sampler_name = f"{p.sampler_name}_dynthres{Script.last_id}"
@@ -72,7 +73,7 @@ class Script(scripts.Script):
         sampler = sd_samplers.all_samplers_map[p.sampler_name]
         def newConstructor(model):
             result = sampler.constructor(model)
-            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, p.steps)
+            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, experiment_mode, p.steps)
             result.model_wrap_cfg = cfg
             return result
         newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
@@ -93,7 +94,7 @@ class Script(scripts.Script):
 ######################### Implementation logic #########################
 
 class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
-    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, maxSteps):
+    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, experiment_mode, maxSteps):
         super().__init__(model)
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
@@ -102,6 +103,7 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         self.maxSteps = maxSteps
         self.cfg_scale_min = cfg_scale_min
         self.mimic_scale_min = mimic_scale_min
+        self.experiment_mode = experiment_mode
 
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
@@ -163,4 +165,28 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
 
         ### Now add it back onto the averages to get into real scale again and return
         result = cfg_renormalized + cfg_means
-        return result.unflatten(2, mim_target.shape[2:])
+        actualRes = result.unflatten(2, mim_target.shape[2:])
+        if self.experiment_mode == 1:
+            num = actualRes.cpu().numpy()
+            for y in range(0, 64):
+                for x in range (0, 64):
+                    if num[0][0][y][x] > 1.0:
+                        num[0][1][y][x] *= 0.5
+                    if num[0][1][y][x] > 1.0:
+                        num[0][1][y][x] *= 0.5
+                    if num[0][2][y][x] > 1.5:
+                        num[0][2][y][x] *= 0.5
+            actualRes = torch.from_numpy(num).to(device=uncond.device)
+        elif self.experiment_mode == 2:
+            num = actualRes.cpu().numpy()
+            for y in range(0, 64):
+                for x in range (0, 64):
+                    overScale = False
+                    for z in range(0, 4):
+                        if abs(num[0][z][y][x]) > 1.5:
+                            overScale = True
+                    if overScale:
+                        for z in range(0, 4):
+                            num[0][z][y][x] *= 0.7
+            actualRes = torch.from_numpy(num).to(device=uncond.device)
+        return actualRes
