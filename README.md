@@ -10,7 +10,7 @@ This works by clamping latents between steps. You can read more [here](https://g
 
 ### Credit
 
-The core functionality of this PR was mainly developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva).
+The core functionality of this PR was originally developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva), further development and research is the work of mcmonkey4eva and JDMLeverton.
 
 --------------
 
