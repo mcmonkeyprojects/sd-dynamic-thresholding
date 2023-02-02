@@ -64,6 +64,15 @@ class Script(scripts.Script):
         cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
         cfg_scale_min = p.dynthres_cfg_scale_min if hasattr(p, 'dynthres_cfg_scale_min') else cfg_scale_min
         experiment_mode = p.dynthres_experiment_mode if hasattr(p, 'dynthres_experiment_mode') else 0
+        p.extra_generation_params["Dynamic thresholding enabled"] = True
+        p.extra_generation_params["Mimic scale"] = mimic_scale
+        p.extra_generation_params["Threshold percentile"] = threshold_percentile
+        if mimic_mode != "Constant":
+            p.extra_generation_params["Mimic mode"] = mimic_mode
+            p.extra_generation_params["Mimic scale minimum"] = mimic_scale_min
+        if cfg_mode != "Constant":
+            p.extra_generation_params["CFG mode"] = cfg_mode
+            p.extra_generation_params["CFG scale minimum"] = cfg_scale_min
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
         fixed_sampler_name = f"{p.sampler_name}_dynthres{Script.last_id}"
