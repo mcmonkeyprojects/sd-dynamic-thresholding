@@ -175,6 +175,7 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         ### Now add it back onto the averages to get into real scale again and return
         result = cfg_renormalized + cfg_means
         actualRes = result.unflatten(2, mim_target.shape[2:])
+
         if self.experiment_mode == 1:
             num = actualRes.cpu().numpy()
             for y in range(0, 64):
@@ -198,4 +199,24 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
                         for z in range(0, 4):
                             num[0][z][y][x] *= 0.7
             actualRes = torch.from_numpy(num).to(device=uncond.device)
+        elif self.experiment_mode == 3:
+            coefs = torch.tensor([
+                #  R       G        B      W
+                [0.298,   0.207,  0.208, 0.0], # L1
+                [0.187,   0.286,  0.173, 0.0], # L2
+                [-0.158,  0.189,  0.264, 0.0], # L3
+                [-0.184, -0.271, -0.473, 1.0], # L4
+            ], device=uncond.device)
+            resRGB = torch.einsum("laxy,ab -> lbxy", actualRes, coefs)
+            maxR, maxG, maxB, maxW = resRGB[0][0].max(), resRGB[0][1].max(), resRGB[0][2].max(), resRGB[0][3].max()
+            maxRGB = max(maxR, maxG, maxB)
+            print(f"test max = r={maxR}, g={maxG}, b={maxB}, w={maxW}, rgb={maxRGB}")
+            if self.step / (self.maxSteps - 1) > 0.2:
+                if maxRGB < 2.0 and maxW < 3.0:
+                    resRGB /= maxRGB / 2.4
+            else:
+                if maxRGB > 2.4 and maxW > 3.0:
+                    resRGB /= maxRGB / 2.4
+            actualRes = torch.einsum("laxy,ab -> lbxy", resRGB, coefs.inverse())
+
         return actualRes
