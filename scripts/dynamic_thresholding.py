@@ -126,11 +126,11 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         elif mode == "Linear Down":
             scale *= 1.0 - (self.step / max)
         elif mode == "Cosine Down":
-            scale *= 1.0 - math.cos(self.step / max)
+            scale *= 1.0 - math.cos((self.step / max) * 1.5707)
         elif mode == "Linear Up":
             scale *= self.step / max
         elif mode == "Cosine Up":
-            scale *= math.cos(self.step / max)
+            scale *= math.cos((self.step / max) * 1.5707)
         scale += min
         return scale
 
