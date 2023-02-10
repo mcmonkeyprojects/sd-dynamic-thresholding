@@ -74,6 +74,8 @@ class Script(scripts.Script):
         if cfg_mode != "Constant":
             p.extra_generation_params["CFG mode"] = cfg_mode
             p.extra_generation_params["CFG scale minimum"] = cfg_scale_min
+        if cfg_mode == "Power Up" or mimic_mode == "Power Up":
+            p.extra_generation_params["Power scheduler value"] = power_val
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
         fixed_sampler_name = f"{p.sampler_name}_dynthres{Script.last_id}"
