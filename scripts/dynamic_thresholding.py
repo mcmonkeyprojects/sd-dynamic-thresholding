@@ -33,10 +33,9 @@ class Script(scripts.Script):
         # "Dynamic Thresholding (CFG Scale Fix)"
         accordion = gr.Group(visible=False)
         with accordion:
-            gr.Markdown("Thresholds high CFG scales to make them work better.  \nSet your actual **CFG Scale** to the high value you want above (eg: 20).  \nThen set '**Mimic CFG Scale**' below to a (lower) CFG scale to mimic the effects of (eg: 10). Make sure it's not *too* different from your actual scale, it can only compensate so far.  \n...  \n")
+            gr.HTML(value=f"<br>View <a style=\"border-bottom: 1px #00ffff dotted;\" href=\"https://github.com/mcmonkeyprojects/sd-dynamic-thresholding/wiki/Usage-Tips\">the wiki for usage tips.</a><br><br>")
             mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0)
             with gr.Accordion("Dynamic Thresholding Advanced Options", open=False):
-                gr.Markdown("You can configure the **scale scheduler** for either the CFG Scale or the Mimic Scale here.  \n'**Constant**' is default.  \nIn testing, setting both to '**Linear Down**' or '**Constant**' seems to produce best results.  \nOther setting combos produce interesting results as well.  \nSet '**Top percentile**' to how much clamping you want. 90% is slightly underclamped, 100% clamps completely and tries to stop any/all burn. The effect tends to scale as it approaches 100%, (eg 90% and 95% are much more similar than 98% and 99%).  \nSet '**Minimum value of the Scale Scheduler**' only if you've set the scale scheduler to something other than '**Constant**', to set the lowest value it will go to (default 0, but higher values are likely better).  \n... \n")
                 threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp')
                 mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler")
                 mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
