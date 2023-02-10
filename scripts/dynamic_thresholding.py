@@ -92,6 +92,8 @@ class Script(scripts.Script):
         p.sampler_name = fixed_sampler_name
         p.fixed_sampler_name = fixed_sampler_name
         sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
+        if p.sampler is not None:
+            p.sampler = sd_samplers.create_sampler(fixed_sampler_name, p.sd_model)
 
     def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power, batch_number, images):
         if not enabled or not hasattr(p, 'orig_sampler_name'):
