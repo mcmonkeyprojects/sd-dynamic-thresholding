@@ -17,7 +17,7 @@ import math
 from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
-VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up"]
+VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up"]
 
 ######################### Script class entrypoint #########################
 class Script(scripts.Script):
@@ -41,16 +41,17 @@ class Script(scripts.Script):
                 mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
                 cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler")
+                powerscale_power = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, label="Power Scheduler Value")
         enabled.change(
             fn=lambda x: {"visible": x, "__type__": "update"},
             inputs=[enabled],
             outputs=[accordion],
             show_progress = False)
-        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min]
+        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power]
 
     last_id = 0
 
-    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, batch_number, prompts, seeds, subseeds):
+    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power, batch_number, prompts, seeds, subseeds):
         enabled = p.dynthres_enabled if hasattr(p, 'dynthres_enabled') else enabled
         if not enabled:
             return
@@ -63,6 +64,7 @@ class Script(scripts.Script):
         cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
         cfg_scale_min = p.dynthres_cfg_scale_min if hasattr(p, 'dynthres_cfg_scale_min') else cfg_scale_min
         experiment_mode = p.dynthres_experiment_mode if hasattr(p, 'dynthres_experiment_mode') else 0
+        power_val = p.dynthres_power_val if hasattr(p, 'dynthres_power_val') else powerscale_power
         p.extra_generation_params["Dynamic thresholding enabled"] = True
         p.extra_generation_params["Mimic scale"] = mimic_scale
         p.extra_generation_params["Threshold percentile"] = threshold_percentile
@@ -81,7 +83,7 @@ class Script(scripts.Script):
         sampler = sd_samplers.all_samplers_map[p.sampler_name]
         def newConstructor(model):
             result = sampler.constructor(model)
-            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, experiment_mode, p.steps)
+            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
             result.model_wrap_cfg = cfg
             return result
         newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
@@ -91,7 +93,7 @@ class Script(scripts.Script):
         p.fixed_sampler_name = fixed_sampler_name
         sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
 
-    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, batch_number, images):
+    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power, batch_number, images):
         if not enabled or not hasattr(p, 'orig_sampler_name'):
             return
         p.sampler_name = p.orig_sampler_name
@@ -102,7 +104,7 @@ class Script(scripts.Script):
 ######################### Implementation logic #########################
 
 class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
-    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, experiment_mode, maxSteps):
+    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, maxSteps):
         super().__init__(model)
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
@@ -112,6 +114,7 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         self.cfg_scale_min = cfg_scale_min
         self.mimic_scale_min = mimic_scale_min
         self.experiment_mode = experiment_mode
+        self.power_val = power_val
 
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         denoised_uncond = x_out[-uncond.shape[0]:]
@@ -134,6 +137,8 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
             scale *= 1.0 - math.cos((self.step / max))
         elif mode == "Cosine Up":
             scale *= 1.0 - math.cos((self.step / max) * 1.5707)
+        elif mode == "Power Up":
+            scale *= math.pow(self.step / max, self.power_val)
         scale += min
         return scale
 
