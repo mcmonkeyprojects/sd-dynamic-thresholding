@@ -17,7 +17,7 @@ import math
 from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
-VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Linear Up", "Cosine Up"]
+VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up"]
 
 ######################### Script class entrypoint #########################
 class Script(scripts.Script):
@@ -125,10 +125,14 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
             pass
         elif mode == "Linear Down":
             scale *= 1.0 - (self.step / max)
+        elif mode == "Half Cosine Down":
+            scale *= 1.0 - math.cos((self.step / max))
         elif mode == "Cosine Down":
             scale *= 1.0 - math.cos((self.step / max) * 1.5707)
         elif mode == "Linear Up":
             scale *= self.step / max
+        elif mode == "Half Cosine Up":
+            scale *= math.cos((self.step / max))
         elif mode == "Cosine Up":
             scale *= math.cos((self.step / max) * 1.5707)
         scale += min
