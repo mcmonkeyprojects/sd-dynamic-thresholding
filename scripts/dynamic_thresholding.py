@@ -41,13 +41,22 @@ class Script(scripts.Script):
                 mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
                 cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler")
-                powerscale_power = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, label="Power Scheduler Value")
+                power_val = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, label="Power Scheduler Value")
         enabled.change(
             fn=lambda x: {"visible": x, "__type__": "update"},
             inputs=[enabled],
             outputs=[accordion],
             show_progress = False)
-        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power]
+        self.infotext_fields = (
+            (enabled, "Dynamic thresholding enabled"),
+            (mimic_scale, "Mimic scale"),
+            (threshold_percentile, "Threshold percentile"),
+            (mimic_scale_min, "Mimic scale minimum"),
+            (mimic_mode, "Mimic mode"),
+            (cfg_mode, "CFG mode"),
+            (cfg_scale_min, "CFG scale minimum"),
+            (power_val, "Power scheduler value"))
+        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val]
 
     last_id = 0
 
