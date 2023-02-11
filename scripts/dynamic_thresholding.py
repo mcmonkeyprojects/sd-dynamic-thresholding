@@ -11,10 +11,9 @@
 ##################
 
 import gradio as gr
-import random
 import torch
 import math
-from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common, script_callbacks
+from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
 VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up"]
@@ -48,7 +47,8 @@ class Script(scripts.Script):
             outputs=[accordion],
             show_progress = False)
         self.infotext_fields = (
-            (enabled, "Dynamic thresholding enabled"),
+            (enabled, lambda d: gr.Checkbox.update(value="Dynamic thresholding enabled" in d)),
+            (accordion, lambda d: gr.Accordion.update(visible="Dynamic thresholding enabled" in d)),
             (mimic_scale, "Mimic scale"),
             (threshold_percentile, "Threshold percentile"),
             (mimic_scale_min, "Mimic scale minimum"),
@@ -56,11 +56,6 @@ class Script(scripts.Script):
             (cfg_mode, "CFG mode"),
             (cfg_scale_min, "CFG scale minimum"),
             (power_val, "Power scheduler value"))
-        # Add implicit DynThresh=False
-        def onInfotext(infotext: str, result: dict[str, any]):
-            if "Dynamic thresholding enabled" not in result:
-                result["Dynamic thresholding enabled"] = False
-        script_callbacks.on_infotext_pasted(onInfotext)
         return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val]
 
     last_id = 0
