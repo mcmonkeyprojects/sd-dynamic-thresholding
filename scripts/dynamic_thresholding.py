@@ -252,20 +252,18 @@ def make_axis_options():
             setattr(p, "dynthres_mimic_scale", x)
         else:
             setattr(p, "dynthres_enabled", False)
-    def apply_scheduler(field):
-        def core(p, x, xs):
+    def confirm_scheduler(p, xs):
+        for x in xs:
             if x not in VALID_MODES:
                 raise RuntimeError(f"Unknown Scheduler: {x}")
-            setattr(p, field, x)
-        return core
     extra_axis_options = [
         xyz_grid.AxisOption("[DynThres] Mimic Scale", float, apply_mimic_scale),
         xyz_grid.AxisOption("[DynThres] Threshold Percentile", float, xyz_grid.apply_field("dynthres_threshold_percentile")),
-        xyz_grid.AxisOption("[DynThres] Mimic Scheduler", str, apply_scheduler("dynthres_mimic_mode"), choices=lambda: VALID_MODES),
+        xyz_grid.AxisOption("[DynThres] Mimic Scheduler", str, xyz_grid.apply_field("dynthres_mimic_mode"), confirm=confirm_scheduler, choices=lambda: VALID_MODES),
         xyz_grid.AxisOption("[DynThres] Mimic minimum", float, xyz_grid.apply_field("dynthres_mimic_scale_min")),
-        xyz_grid.AxisOption("[DynThres] CFG Scheduler", str, apply_scheduler("dynthres_cfg_mode"), choices=lambda: VALID_MODES),
+        xyz_grid.AxisOption("[DynThres] CFG Scheduler", str, xyz_grid.apply_field("dynthres_cfg_mode"), confirm=confirm_scheduler, choices=lambda: VALID_MODES),
         xyz_grid.AxisOption("[DynThres] CFG minimum", float, xyz_grid.apply_field("dynthres_cfg_scale_min")),
-        xyz_grid.AxisOption("[DynThres] Power value", float, xyz_grid.apply_field("dynthres_power_val"))
+        xyz_grid.AxisOption("[DynThres] Power scheduler value", float, xyz_grid.apply_field("dynthres_power_val"))
     ]
     xyz_grid.axis_options.extend(extra_axis_options)
 
