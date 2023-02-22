@@ -61,19 +61,19 @@ class Script(scripts.Script):
     last_id = 0
 
     def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power, batch_number, prompts, seeds, subseeds):
-        enabled = p.dynthres_enabled if hasattr(p, 'dynthres_enabled') else enabled
+        enabled = getattr(p, 'dynthres_enabled', enabled)
         if not enabled:
             return
         if p.sampler_name in ["DDIM", "PLMS"]:
             raise RuntimeError(f"Cannot use sampler {p.sampler_name} with Dynamic Thresholding")
-        mimic_scale = p.dynthres_mimic_scale if hasattr(p, 'dynthres_mimic_scale') else mimic_scale
-        threshold_percentile = p.dynthres_threshold_percentile if hasattr(p, 'dynthres_threshold_percentile') else threshold_percentile
-        mimic_mode = p.dynthres_mimic_mode if hasattr(p, 'dynthres_mimic_mode') else mimic_mode
-        mimic_scale_min = p.dynthres_mimic_scale_min if hasattr(p, 'dynthres_mimic_scale_min') else mimic_scale_min
-        cfg_mode = p.dynthres_cfg_mode if hasattr(p, 'dynthres_cfg_mode') else cfg_mode
-        cfg_scale_min = p.dynthres_cfg_scale_min if hasattr(p, 'dynthres_cfg_scale_min') else cfg_scale_min
-        experiment_mode = p.dynthres_experiment_mode if hasattr(p, 'dynthres_experiment_mode') else 0
-        power_val = p.dynthres_power_val if hasattr(p, 'dynthres_power_val') else powerscale_power
+        mimic_scale = getattr(p, 'dynthres_mimic_scale', mimic_scale)
+        threshold_percentile = getattr(p, 'dynthres_threshold_percentile', threshold_percentile)
+        mimic_mode = getattr(p, 'dynthres_mimic_mode', mimic_mode)
+        mimic_scale_min = getattr(p, 'dynthres_mimic_scale_min', mimic_scale_min)
+        cfg_mode = getattr(p, 'dynthres_cfg_mode', cfg_mode)
+        cfg_scale_min = getattr(p, 'dynthres_cfg_scale_min', cfg_scale_min)
+        experiment_mode = getattr(p, 'dynthres_experiment_mode', 0)
+        power_val = getattr(p, 'dynthres_power_val', powerscale_power)
         p.extra_generation_params["Dynamic thresholding enabled"] = True
         p.extra_generation_params["Mimic scale"] = mimic_scale
         p.extra_generation_params["Threshold percentile"] = threshold_percentile
