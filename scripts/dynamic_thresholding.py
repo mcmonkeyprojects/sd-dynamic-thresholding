@@ -16,7 +16,7 @@ import math
 from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
-VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up"]
+VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down"]
 
 ######################### Script class entrypoint #########################
 class Script(scripts.Script):
@@ -83,7 +83,7 @@ class Script(scripts.Script):
         if cfg_mode != "Constant":
             p.extra_generation_params["CFG mode"] = cfg_mode
             p.extra_generation_params["CFG scale minimum"] = cfg_scale_min
-        if cfg_mode == "Power Up" or mimic_mode == "Power Up":
+        if cfg_mode in ["Power Up", "Power Down"] or mimic_mode in ["Power Up", "Power Down"]:
             p.extra_generation_params["Power scheduler value"] = power_val
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
@@ -152,6 +152,8 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
             scale *= 1.0 - math.cos((self.step / max) * 1.5707)
         elif mode == "Power Up":
             scale *= math.pow(self.step / max, self.power_val)
+        elif mode == "Power Down":
+            scale *= 1.0 - math.pow(self.step / max, self.power_val)
         scale += min
         return scale
 
