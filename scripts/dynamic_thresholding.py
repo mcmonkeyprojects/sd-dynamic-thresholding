@@ -40,7 +40,13 @@ class Script(scripts.Script):
                 mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
                 cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler")
-                power_val = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, label="Power Scheduler Value")
+                power_val = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, visible=False, label="Power Scheduler Value")
+        def shouldShowPowerScheduler(cfgMode, mimicMode):
+            if cfgMode in ["Power Up", "Power Down"] or mimicMode in ["Power Up", "Power Down"]:
+                return {"visible": True, "__type__": "update"}
+            return {"visible": False, "__type__": "update"}
+        cfg_mode.change(shouldShowPowerScheduler, inputs=[cfg_mode, mimic_mode], outputs=power_val)
+        mimic_mode.change(shouldShowPowerScheduler, inputs=[cfg_mode, mimic_mode], outputs=power_val)
         enabled.change(
             fn=lambda x: {"visible": x, "__type__": "update"},
             inputs=[enabled],
