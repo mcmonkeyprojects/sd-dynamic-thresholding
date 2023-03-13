@@ -13,6 +13,7 @@
 import gradio as gr
 import torch
 import math
+import traceback
 from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
@@ -278,4 +279,5 @@ def make_axis_options():
 try:
     make_axis_options()
 except Exception as e:
+    traceback.print_exc()
     print(f"Failed to add support for X/Y/Z Plot Script because: {e}")
