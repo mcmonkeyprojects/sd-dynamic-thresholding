@@ -14,7 +14,7 @@ import gradio as gr
 import torch
 import math
 import traceback
-from modules import scripts, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
+from modules import scripts, script_callbacks, sd_samplers, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
 VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down"]
@@ -274,10 +274,14 @@ def make_axis_options():
         xyz_grid.AxisOption("[DynThres] CFG minimum", float, xyz_grid.apply_field("dynthres_cfg_scale_min")),
         xyz_grid.AxisOption("[DynThres] Power scheduler value", float, xyz_grid.apply_field("dynthres_power_val"))
     ]
-    xyz_grid.axis_options.extend(extra_axis_options)
+    if not any("[DynThres]" in x.label for x in xyz_grid.axis_options):
+        xyz_grid.axis_options.extend(extra_axis_options)
 
-try:
-    make_axis_options()
-except Exception as e:
-    traceback.print_exc()
-    print(f"Failed to add support for X/Y/Z Plot Script because: {e}")
+def callbackBeforeUi():
+    try:
+        make_axis_options()
+    except Exception as e:
+        traceback.print_exc()
+        print(f"Failed to add support for X/Y/Z Plot Script because: {e}")
+
+script_callbacks.on_before_ui(callbackBeforeUi)
