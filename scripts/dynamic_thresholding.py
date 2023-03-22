@@ -100,8 +100,9 @@ class Script(scripts.Script):
         # Make a placeholder sampler
         sampler = sd_samplers.all_samplers_map[p.sampler_name]
         def newConstructor(model):
+            dtData = DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
             result = sampler.constructor(model)
-            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
+            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, dtData)
             result.model_wrap_cfg = cfg
             return result
         newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
@@ -121,11 +122,10 @@ class Script(scripts.Script):
         del p.orig_sampler_name
         del p.fixed_sampler_name
 
-######################### Implementation logic #########################
+######################### DynThresh Core #########################
 
-class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
-    def __init__(self, model, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, maxSteps):
-        super().__init__(model)
+class DynThresh:
+    def __init__(self, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, maxSteps):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
@@ -136,10 +136,6 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         self.experiment_mode = experiment_mode
         self.power_val = power_val
 
-    def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
-        denoised_uncond = x_out[-uncond.shape[0]:]
-        return self.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, conds_list)
-    
     def interpretScale(self, scale, mode, min):
         scale -= min
         max = self.maxSteps - 1
@@ -164,16 +160,13 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         scale += min
         return scale
 
-    def dynthresh(self, cond, uncond, cfgScale, conds_list):
+    def dynthresh(self, cond, uncond, cfgScale, weights):
         mimicScale = self.interpretScale(self.mimic_scale, self.mimic_mode, self.mimic_scale_min)
         cfgScale = self.interpretScale(cfgScale, self.cfg_mode, self.cfg_scale_min)
         # uncond shape is (batch, 4, height, width)
         conds_per_batch = cond.shape[0] / uncond.shape[0]
         assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
         cond_stacked = cond.reshape((-1, int(conds_per_batch)) + uncond.shape[1:])
-        # conds_list shape is (batch, cond, 2)
-        weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
-        weights = weights.reshape(*weights.shape, 1, 1, 1)
 
         ### Normal first part of the CFG Scale logic, basically
         diff = cond_stacked - uncond.unsqueeze(1)
@@ -250,6 +243,20 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
             actualRes = torch.einsum("laxy,ab -> lbxy", resRGB, coefs.inverse())
 
         return actualRes
+
+######################### K-Diffusion Implementation logic #########################
+
+class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
+    def __init__(self, model, dtData):
+        super().__init__(model)
+        self.main_class = dtData
+
+    def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
+        denoised_uncond = x_out[-uncond.shape[0]:]
+        # conds_list shape is (batch, cond, 2)
+        weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
+        weights = weights.reshape(*weights.shape, 1, 1, 1)
+        return self.main_class.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, weights)
 
 ######################### XYZ Plot Script Support logic #########################
 
