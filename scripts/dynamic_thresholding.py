@@ -12,7 +12,7 @@
 
 import gradio as gr
 import torch, traceback
-import dynthres_core
+import dynthres_unipc, dynthres_core
 from modules import scripts, script_callbacks, sd_samplers, sd_samplers_compvis, sd_samplers_kdiffusion, sd_samplers_common
 
 ######################### Data values #########################
@@ -98,13 +98,18 @@ class Script(scripts.Script):
         threshold_percentile *= 0.01
         # Make a placeholder sampler
         sampler = sd_samplers.all_samplers_map[p.sampler_name]
-        def newConstructor(model):
-            dtData = DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
-            result = sampler.constructor(model)
-            cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, dtData)
-            result.model_wrap_cfg = cfg
-            return result
-        newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
+        dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
+        if p.sampler_name == "UniPC":
+            def uniPCConstructor(model):
+                return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
+            newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, uniPCConstructor, sampler.aliases, sampler.options)
+        else:
+            def newConstructor(model):
+                result = sampler.constructor(model)
+                cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, dtData)
+                result.model_wrap_cfg = cfg
+                return result
+            newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
         # Apply for usage
         p.orig_sampler_name = p.sampler_name
         p.sampler_name = fixed_sampler_name
@@ -121,7 +126,12 @@ class Script(scripts.Script):
         del p.orig_sampler_name
         del p.fixed_sampler_name
 
+######################### CompVis Implementation logic #########################
 
+class CustomVanillaSDSampler(sd_samplers_compvis.VanillaStableDiffusionSampler):
+    def __init__(self, constructor, sd_model, dtData):
+        super().__init__(constructor, sd_model)
+        self.sampler.main_class = dtData
 
 ######################### K-Diffusion Implementation logic #########################
 
@@ -135,6 +145,7 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         # conds_list shape is (batch, cond, 2)
         weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
         weights = weights.reshape(*weights.shape, 1, 1, 1)
+        self.main_class.step = self.step
         return self.main_class.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, weights)
 
 ######################### XYZ Plot Script Support logic #########################

@@ -48,7 +48,9 @@ class DynThresh:
 
         ### Normal first part of the CFG Scale logic, basically
         diff = cond_stacked - uncond.unsqueeze(1)
-        relative = (diff * weights).sum(1)
+        if weights is not None:
+            diff = diff * weights
+        relative = diff.sum(1)
 
         ### Get the normal result for both mimic and normal scale
         mim_target = uncond + relative * mimicScale
