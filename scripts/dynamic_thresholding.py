@@ -12,8 +12,12 @@
 
 import gradio as gr
 import torch, traceback
-import dynthres_unipc, dynthres_core
+import dynthres_core
 from modules import scripts, script_callbacks, sd_samplers, sd_samplers_compvis, sd_samplers_kdiffusion, sd_samplers_common
+try:
+    import dynthres_unipc
+except Exception as e:
+    print(f"\n\n======\nError! UniPC sampler support failed to load! Is your WebUI up to date?\n(Error: {e})\n======")
 
 ######################### Data values #########################
 VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down"]
