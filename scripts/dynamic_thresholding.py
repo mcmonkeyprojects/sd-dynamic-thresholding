@@ -76,6 +76,8 @@ class Script(scripts.Script):
             return
         if p.sampler_name in ["DDIM", "PLMS"]:
             raise RuntimeError(f"Cannot use sampler {p.sampler_name} with Dynamic Thresholding")
+        if p.sampler_name == 'UniPC' and p.enable_hr:
+            raise RuntimeError(f"UniPC does not support Hires Fix. Auto WebUI silently swaps to DDIM for this, which DynThresh does not support. Please swap to a sampler capable of img2img processing for HR Fix to work.")
         mimic_scale = getattr(p, 'dynthres_mimic_scale', mimic_scale)
         threshold_percentile = getattr(p, 'dynthres_threshold_percentile', threshold_percentile)
         mimic_mode = getattr(p, 'dynthres_mimic_mode', mimic_mode)
