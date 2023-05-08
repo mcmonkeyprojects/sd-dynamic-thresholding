@@ -74,9 +74,10 @@ class Script(scripts.Script):
         enabled = getattr(p, 'dynthres_enabled', enabled)
         if not enabled:
             return
-        if p.sampler_name in ["DDIM", "PLMS"]:
-            raise RuntimeError(f"Cannot use sampler {p.sampler_name} with Dynamic Thresholding")
-        if p.sampler_name == 'UniPC' and p.enable_hr:
+        orig_sampler_name = p.sampler_name
+        if orig_sampler_name in ["DDIM", "PLMS"]:
+            raise RuntimeError(f"Cannot use sampler {orig_sampler_name} with Dynamic Thresholding")
+        if orig_sampler_name == 'UniPC' and p.enable_hr:
             raise RuntimeError(f"UniPC does not support Hires Fix. Auto WebUI silently swaps to DDIM for this, which DynThresh does not support. Please swap to a sampler capable of img2img processing for HR Fix to work.")
         mimic_scale = getattr(p, 'dynthres_mimic_scale', mimic_scale)
         threshold_percentile = getattr(p, 'dynthres_threshold_percentile', threshold_percentile)
@@ -89,6 +90,7 @@ class Script(scripts.Script):
         p.extra_generation_params["Dynamic thresholding enabled"] = True
         p.extra_generation_params["Mimic scale"] = mimic_scale
         p.extra_generation_params["Threshold percentile"] = threshold_percentile
+        p.extra_generation_params["Sampler"] = orig_sampler_name
         if mimic_mode != "Constant":
             p.extra_generation_params["Mimic mode"] = mimic_mode
             p.extra_generation_params["Mimic scale minimum"] = mimic_scale_min
@@ -99,13 +101,13 @@ class Script(scripts.Script):
             p.extra_generation_params["Power scheduler value"] = power_val
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
-        fixed_sampler_name = f"{p.sampler_name}_dynthres{Script.last_id}"
+        fixed_sampler_name = f"{orig_sampler_name}_dynthres{Script.last_id}"
         # Percentage to portion
         threshold_percentile *= 0.01
         # Make a placeholder sampler
-        sampler = sd_samplers.all_samplers_map[p.sampler_name]
+        sampler = sd_samplers.all_samplers_map[orig_sampler_name]
         dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
-        if p.sampler_name == "UniPC":
+        if orig_sampler_name == "UniPC":
             def uniPCConstructor(model):
                 return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
             newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, uniPCConstructor, sampler.aliases, sampler.options)
@@ -117,7 +119,7 @@ class Script(scripts.Script):
                 return result
             newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
         # Apply for usage
-        p.orig_sampler_name = p.sampler_name
+        p.orig_sampler_name = orig_sampler_name
         p.sampler_name = fixed_sampler_name
         p.fixed_sampler_name = fixed_sampler_name
         sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
