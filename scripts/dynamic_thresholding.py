@@ -62,8 +62,8 @@ class Script(scripts.Script):
             (mimic_scale, "Mimic scale"),
             (threshold_percentile, "Threshold percentile"),
             (mimic_scale_min, "Mimic scale minimum"),
-            (mimic_mode, "Mimic mode"),
-            (cfg_mode, "CFG mode"),
+            (mimic_mode, lambda d: gr.Dropdown.update(value=d.get("Mimic mode", "Constant"))),
+            (cfg_mode, lambda d: gr.Dropdown.update(value=d.get("CFG mode", "Constant"))),
             (cfg_scale_min, "CFG scale minimum"),
             (power_val, "Power scheduler value"))
         return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val]
