@@ -154,6 +154,19 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
         weights = weights.reshape(*weights.shape, 1, 1, 1)
         self.main_class.step = self.step
+        
+        if self.main_class.experiment_mode >= 4 and self.main_class.experiment_mode <= 5:
+            # https://arxiv.org/pdf/2305.08891.pdf "Rescale CFG". It's not good, but if you want to test it, just set experiment_mode = 4 + phi.
+            denoised = torch.clone(denoised_uncond)
+            fi = self.main_class.experiment_mode - 4.0
+            for i, conds in enumerate(conds_list):
+                for cond_index, weight in conds:
+                    xcfg = (denoised_uncond[i] + (x_out[cond_index] - denoised_uncond[i]) * (cond_scale * weight))
+                    xrescaled = xcfg * (torch.std(x_out[cond_index]) / torch.std(xcfg))
+                    xfinal = fi * xrescaled + (1.0 - fi) * xcfg
+                    denoised[i] = xfinal
+            return denoised
+
         return self.main_class.dynthresh(x_out[:-uncond.shape[0]], denoised_uncond, cond_scale, weights)
 
 ######################### XYZ Plot Script Support logic #########################
