@@ -20,7 +20,8 @@ except Exception as e:
     print(f"\n\n======\nError! UniPC sampler support failed to load! Is your WebUI up to date?\n(Error: {e})\n======")
 
 ######################### Data values #########################
-VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down"]
+VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down", "Linear Repeating", "Cosine Repeating"]
+MODES_WITH_VALUE = ["Power Up", "Power Down", "Linear Repeating", "Cosine Repeating"]
 
 ######################### Script class entrypoint #########################
 class Script(scripts.Script):
@@ -44,13 +45,13 @@ class Script(scripts.Script):
                 mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
                 cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler")
-                power_val = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, visible=False, label="Power Scheduler Value")
-        def shouldShowPowerScheduler(cfgMode, mimicMode):
-            if cfgMode in ["Power Up", "Power Down"] or mimicMode in ["Power Up", "Power Down"]:
+                sched_val = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, visible=False, label="Scheduler Value", info="Value unique to the scheduler mode - for Power Up/Down, this is the power. For Linear/Cosine Repeating, this is the number of repeats per image.")
+        def shouldShowSchedulerValue(cfgMode, mimicMode):
+            if cfgMode in MODES_WITH_VALUE or mimicMode in MODES_WITH_VALUE:
                 return {"visible": True, "__type__": "update"}
             return {"visible": False, "__type__": "update"}
-        cfg_mode.change(shouldShowPowerScheduler, inputs=[cfg_mode, mimic_mode], outputs=power_val)
-        mimic_mode.change(shouldShowPowerScheduler, inputs=[cfg_mode, mimic_mode], outputs=power_val)
+        cfg_mode.change(shouldShowSchedulerValue, inputs=[cfg_mode, mimic_mode], outputs=sched_val)
+        mimic_mode.change(shouldShowSchedulerValue, inputs=[cfg_mode, mimic_mode], outputs=sched_val)
         enabled.change(
             fn=lambda x: {"visible": x, "__type__": "update"},
             inputs=[enabled],
@@ -65,12 +66,12 @@ class Script(scripts.Script):
             (mimic_mode, lambda d: gr.Dropdown.update(value=d.get("Mimic mode", "Constant"))),
             (cfg_mode, lambda d: gr.Dropdown.update(value=d.get("CFG mode", "Constant"))),
             (cfg_scale_min, "CFG scale minimum"),
-            (power_val, "Power scheduler value"))
-        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val]
+            (sched_val, "Scheduler value"))
+        return [enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val]
 
     last_id = 0
 
-    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power, batch_number, prompts, seeds, subseeds):
+    def process_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, batch_number, prompts, seeds, subseeds):
         enabled = getattr(p, 'dynthres_enabled', enabled)
         if not enabled:
             return
@@ -86,7 +87,7 @@ class Script(scripts.Script):
         cfg_mode = getattr(p, 'dynthres_cfg_mode', cfg_mode)
         cfg_scale_min = getattr(p, 'dynthres_cfg_scale_min', cfg_scale_min)
         experiment_mode = getattr(p, 'dynthres_experiment_mode', 0)
-        power_val = getattr(p, 'dynthres_power_val', powerscale_power)
+        sched_val = getattr(p, 'dynthres_scheduler_val', sched_val)
         p.extra_generation_params["Dynamic thresholding enabled"] = True
         p.extra_generation_params["Mimic scale"] = mimic_scale
         p.extra_generation_params["Threshold percentile"] = threshold_percentile
@@ -97,8 +98,8 @@ class Script(scripts.Script):
         if cfg_mode != "Constant":
             p.extra_generation_params["CFG mode"] = cfg_mode
             p.extra_generation_params["CFG scale minimum"] = cfg_scale_min
-        if cfg_mode in ["Power Up", "Power Down"] or mimic_mode in ["Power Up", "Power Down"]:
-            p.extra_generation_params["Power scheduler value"] = power_val
+        if cfg_mode in MODES_WITH_VALUE or mimic_mode in MODES_WITH_VALUE:
+            p.extra_generation_params["Scheduler value"] = sched_val
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
         fixed_sampler_name = f"{orig_sampler_name}_dynthres{Script.last_id}"
@@ -106,7 +107,7 @@ class Script(scripts.Script):
         threshold_percentile *= 0.01
         # Make a placeholder sampler
         sampler = sd_samplers.all_samplers_map[orig_sampler_name]
-        dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, p.steps)
+        dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps)
         if orig_sampler_name == "UniPC":
             def uniPCConstructor(model):
                 return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
@@ -126,7 +127,7 @@ class Script(scripts.Script):
         if p.sampler is not None:
             p.sampler = sd_samplers.create_sampler(fixed_sampler_name, p.sd_model)
 
-    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, powerscale_power, batch_number, images):
+    def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, batch_number, images):
         if not enabled or not hasattr(p, 'orig_sampler_name'):
             return
         p.sampler_name = p.orig_sampler_name
@@ -190,7 +191,7 @@ def make_axis_options():
         xyz_grid.AxisOption("[DynThres] Mimic minimum", float, xyz_grid.apply_field("dynthres_mimic_scale_min")),
         xyz_grid.AxisOption("[DynThres] CFG Scheduler", str, xyz_grid.apply_field("dynthres_cfg_mode"), confirm=confirm_scheduler, choices=lambda: VALID_MODES),
         xyz_grid.AxisOption("[DynThres] CFG minimum", float, xyz_grid.apply_field("dynthres_cfg_scale_min")),
-        xyz_grid.AxisOption("[DynThres] Power scheduler value", float, xyz_grid.apply_field("dynthres_power_val"))
+        xyz_grid.AxisOption("[DynThres] Scheduler value", float, xyz_grid.apply_field("dynthres_scheduler_val"))
     ]
     if not any("[DynThres]" in x.label for x in xyz_grid.axis_options):
         xyz_grid.axis_options.extend(extra_axis_options)
