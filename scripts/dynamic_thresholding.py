@@ -45,7 +45,7 @@ class Script(scripts.Script):
                 mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler")
                 cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler")
                 cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler")
-                sched_val = gr.Slider(minimum=0.0, maximum=15.0, step=0.5, value=4.0, visible=False, label="Scheduler Value", info="Value unique to the scheduler mode - for Power Up/Down, this is the power. For Linear/Cosine Repeating, this is the number of repeats per image.")
+                sched_val = gr.Slider(minimum=0.0, maximum=40.0, step=0.5, value=4.0, visible=False, label="Scheduler Value", info="Value unique to the scheduler mode - for Power Up/Down, this is the power. For Linear/Cosine Repeating, this is the number of repeats per image.")
         def shouldShowSchedulerValue(cfgMode, mimicMode):
             if cfgMode in MODES_WITH_VALUE or mimicMode in MODES_WITH_VALUE:
                 return {"visible": True, "__type__": "update"}
