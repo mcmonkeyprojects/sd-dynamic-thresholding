@@ -39,11 +39,7 @@ class DynThresh:
             portion = ((self.step / max) * self.sched_val) % 1.0
             scale *= (0.5 - portion) * 2 if portion < 0.5 else (portion - 0.5) * 2
         elif mode == "Cosine Repeating":
-            curved = 1.0 - (math.cos((self.step / max) * 3.14159 * self.sched_val) * 0.5 + 0.5)
-            portion = curved % 1.0
-            start = math.floor(portion)
-            portion -= start
-            scale *= (0.5 - portion) * 2 if portion < 0.5 else (portion - 0.5) * 2
+            scale *= math.cos((self.step / max) * 6.28318 * self.sched_val) * 0.5 + 0.5
         elif mode == "Sawtooth":
             scale *= ((self.step / max) * self.sched_val) % 1.0
         scale += min
