@@ -41,10 +41,12 @@ class Script(scripts.Script):
             mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0, elem_id='dynthres_mimic_scale')
             with gr.Accordion("Dynamic Thresholding Advanced Options", open=False, elem_id='dynthres_advanced_opts'):
                 threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp', elem_id='dynthres_threshold_percentile')
-                mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler", elem_id='dynthres_mimic_mode')
-                mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the Mimic Scale Scheduler", elem_id='dynthres_mimic_scale_min')
-                cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler", elem_id='dynthres_cfg_mode')
-                cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum value of the CFG Scale Scheduler", elem_id='dynthres_cfg_scale_min')
+                with gr.Row():
+                    mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler", elem_id='dynthres_mimic_mode')
+                    mimic_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum Mimic Scale Scheduler", elem_id='dynthres_mimic_scale_min')
+                with gr.Row():
+                    cfg_mode = gr.Dropdown(VALID_MODES, value="Constant", label="CFG Scale Scheduler", elem_id='dynthres_cfg_mode')
+                    cfg_scale_min = gr.Slider(minimum=0.0, maximum=30.0, step=0.5, label="Minimum CFG Scale Scheduler", elem_id='dynthres_cfg_scale_min')
                 sched_val = gr.Slider(minimum=0.0, maximum=40.0, step=0.5, value=4.0, visible=False, label="Scheduler Value", info="Value unique to the scheduler mode - for Power Up/Down, this is the power. For Linear/Cosine Repeating, this is the number of repeats per image.", elem_id='dynthres_sched_val')
         def shouldShowSchedulerValue(cfgMode, mimicMode):
             if cfgMode in MODES_WITH_VALUE or mimicMode in MODES_WITH_VALUE:
