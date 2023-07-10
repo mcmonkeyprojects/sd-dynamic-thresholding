@@ -41,13 +41,14 @@ class Script(scripts.Script):
     def ui(self, is_img2img):
         def vis_change(isVis):
             return {"visible": isVis, "__type__": "update"}
-        enabled = gr.Checkbox(value=False, label="Enable Dynamic Thresholding (CFG Scale Fix)")
         # "Dynamic Thresholding (CFG Scale Fix)"
-        accordion = gr.Group(visible=False)
-        with accordion:
-            gr.HTML(value=f"<br>View <a style=\"border-bottom: 1px #00ffff dotted;\" href=\"https://github.com/mcmonkeyprojects/sd-dynamic-thresholding/wiki/Usage-Tips\">the wiki for usage tips.</a><br><br>", elem_id='dynthres_wiki_link')
-            mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0, elem_id='dynthres_mimic_scale')
-            with gr.Accordion("Dynamic Thresholding Advanced Options", open=False, elem_id='dynthres_advanced_opts'):
+        with gr.Accordion("Dynamic Thresholding (CFG Scale Fix)", open=False, elem_id="dynthres_" + ("img2img" if is_img2img else "txt2img")):
+            with gr.Row():
+                enabled = gr.Checkbox(value=False, label="Dynamic Thresholding Enable", elem_classes=["dynthres-enabled"])
+            gr.HTML(value=f"View <a style=\"border-bottom: 1px #00ffff dotted;\" href=\"https://github.com/mcmonkeyprojects/sd-dynamic-thresholding/wiki/Usage-Tips\">the wiki for usage tips.</a><br><br>", elem_id='dynthres_wiki_link')
+            with gr.Group(visible=False) as accordion:
+                mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0, elem_id='dynthres_mimic_scale')
+            with gr.Accordion("Advanced Options", open=False, elem_id='dynthres_advanced_opts'):
                 with gr.Row():
                     threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp', elem_id='dynthres_threshold_percentile')
                     interpolate_phi = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label="Interpolate Phi", value=1.0, elem_id='dynthres_interpolate_phi')
