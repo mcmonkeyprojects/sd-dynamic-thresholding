@@ -1,9 +1,20 @@
+import enum
+
 import torch, math
 
 ######################### DynThresh Core #########################
 
+class DynThreshScalingStartpoint(enum.IntEnum):
+    ZERO = 0
+    MEAN = 1
+
+
+class DynThreshVariabilityMeasure(enum.IntEnum):
+    STD = 0
+    AD = 1
+
 class DynThresh:
-    def __init__(self, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps):
+    def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure,interpolate_phi,threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, maxSteps):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
@@ -12,7 +23,12 @@ class DynThresh:
         self.cfg_scale_min = cfg_scale_min
         self.mimic_scale_min = mimic_scale_min
         self.experiment_mode = experiment_mode
-        self.sched_val = sched_val
+        self.power_val = power_val
+
+        self.sep_feat_channels = separate_feature_channels
+        self.scaling_startpoint = scaling_startpoint
+        self.variability_measure = variability_measure
+        self.interpolate_phi = interpolate_phi
 
     def interpretScale(self, scale, mode, min):
         scale -= min
@@ -32,16 +48,9 @@ class DynThresh:
         elif mode == "Cosine Up":
             scale *= 1.0 - math.cos((self.step / max) * 1.5707)
         elif mode == "Power Up":
-            scale *= math.pow(self.step / max, self.sched_val)
+            scale *= math.pow(self.step / max, self.power_val)
         elif mode == "Power Down":
-            scale *= 1.0 - math.pow(self.step / max, self.sched_val)
-        elif mode == "Linear Repeating":
-            portion = ((self.step / max) * self.sched_val) % 1.0
-            scale *= (0.5 - portion) * 2 if portion < 0.5 else (portion - 0.5) * 2
-        elif mode == "Cosine Repeating":
-            scale *= math.cos((self.step / max) * 6.28318 * self.sched_val) * 0.5 + 0.5
-        elif mode == "Sawtooth":
-            scale *= ((self.step / max) * self.sched_val) % 1.0
+            scale *= 1.0 - math.pow(self.step / max, self.power_val)
         scale += min
         return scale
 
@@ -73,18 +82,53 @@ class DynThresh:
         cfg_centered = cfg_flattened - cfg_means
 
         ### Get the maximum value of all datapoints (with an optional threshold percentile on the uncond)
-        mim_max = mim_centered.abs().max(dim=2).values.unsqueeze(2)
-        cfg_max = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
-        actualMax = torch.maximum(cfg_max, mim_max)
 
-        ### Clamp to the max
-        cfg_clamped = cfg_centered.clamp(-actualMax, actualMax)
-        ### Now shrink from the max to normalize and grow to the mimic scale (instead of the CFG scale)
-        cfg_renormalized = (cfg_clamped / actualMax) * mim_max
 
-        ### Now add it back onto the averages to get into real scale again and return
-        result = cfg_renormalized + cfg_means
+
+
+
+        if self.sep_feat_channels:
+            if self.variability_measure == DynThreshVariabilityMeasure.AD:
+                min_scaleref = mim_centered.abs().max(dim=2).values.unsqueeze(2)
+                cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
+            elif self.variability_measure == DynThreshVariabilityMeasure.STD:
+                min_scaleref = mim_centered.std(dim=2).unsqueeze(2)
+                cfg_scaleref = cfg_centered.std(dim=2).unsqueeze(2)
+
+        else:
+            if self.variability_measure == DynThreshVariabilityMeasure.AD:
+                min_scaleref = mim_centered.abs().max()
+                cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile)
+            elif self.variability_measure == DynThreshVariabilityMeasure.STD:
+                min_scaleref = mim_centered.std()
+                cfg_scaleref = cfg_centered.std()
+
+        if self.scaling_startpoint == DynThreshScalingStartpoint.MEAN:
+            if self.variability_measure == DynThreshVariabilityMeasure.AD:
+                max_scalref = torch.maximum(min_scaleref, cfg_scaleref)
+                ### Clamp to the max
+                cfg_clamped = cfg_centered.clamp(-max_scalref, max_scalref)
+                ### Now shrink from the max to normalize and grow to the mimic scale (instead of the CFG scale)
+                cfg_renormalized = (cfg_clamped / max_scalref) * min_scaleref
+            elif self.variability_measure == DynThreshVariabilityMeasure.STD:
+                cfg_renormalized = (cfg_centered / cfg_scaleref) * min_scaleref
+
+            ### Now add it back onto the averages to get into real scale again and return
+            result = cfg_renormalized + cfg_means
+        elif self.scaling_startpoint == DynThreshScalingStartpoint.ZERO:
+
+            scaling_factor = min_scaleref / cfg_scaleref
+
+            result = cfg_flattened * scaling_factor
+
+
+
+
+
         actualRes = result.unflatten(2, mim_target.shape[2:])
+        if self.interpolate_phi != 1.0:
+            actualRes = actualRes * self.interpolate_phi + cfg_target * (1.0 - self.interpolate_phi)
+
 
         if self.experiment_mode == 1:
             num = actualRes.cpu().numpy()
