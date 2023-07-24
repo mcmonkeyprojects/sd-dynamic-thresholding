@@ -78,7 +78,7 @@ class Script(scripts.Script):
 
     last_id = 0
 
-    def process_batch(self, p, enabled, mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi,threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, batch_number, prompts, seeds, subseeds):
+    def process_batch(self, p, enabled, mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, batch_number, prompts, seeds, subseeds):
         enabled = getattr(p, 'dynthres_enabled', enabled)
         if not enabled:
             return
@@ -122,7 +122,7 @@ class Script(scripts.Script):
         threshold_percentile *= 0.01
         # Make a placeholder sampler
         sampler = sd_samplers.all_samplers_map[orig_sampler_name]
-        dtData = dynthres_core.DynThresh(mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps)
+        dtData = dynthres_core.DynThresh(mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps)
         if orig_sampler_name == "UniPC":
             def uniPCConstructor(model):
                 return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
@@ -142,7 +142,7 @@ class Script(scripts.Script):
         if p.sampler is not None:
             p.sampler = sd_samplers.create_sampler(fixed_sampler_name, p.sd_model)
 
-    def postprocess_batch(self, p, enabled, mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi,threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, batch_number, images):
+    def postprocess_batch(self, p, enabled, mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, batch_number, images):
         if not enabled or not hasattr(p, 'orig_sampler_name'):
             return
         p.sampler_name = p.orig_sampler_name
