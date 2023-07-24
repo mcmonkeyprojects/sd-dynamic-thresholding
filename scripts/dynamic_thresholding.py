@@ -113,7 +113,7 @@ class Script(scripts.Script):
         if cfg_mode != "Constant":
             p.extra_generation_params["CFG mode"] = cfg_mode
             p.extra_generation_params["CFG scale minimum"] = cfg_scale_min
-        if cfg_mode in [MODES_WITH_VALUE or mimic_mode in MODES_WITH_VALUE:
+        if cfg_mode in MODES_WITH_VALUE or mimic_mode in MODES_WITH_VALUE:
             p.extra_generation_params["Scheduler value"] = sched_val
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
@@ -122,7 +122,7 @@ class Script(scripts.Script):
         threshold_percentile *= 0.01
         # Make a placeholder sampler
         sampler = sd_samplers.all_samplers_map[orig_sampler_name]
-        dtData = dynthres_core.DynThresh(mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure,interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps)
+        dtData = dynthres_core.DynThresh(mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps)
         if orig_sampler_name == "UniPC":
             def uniPCConstructor(model):
                 return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)

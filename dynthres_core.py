@@ -23,7 +23,7 @@ class DynThresh:
         self.cfg_scale_min = cfg_scale_min
         self.mimic_scale_min = mimic_scale_min
         self.experiment_mode = experiment_mode
-        self.sched_val  = sched_val
+        self.sched_val = sched_val
 
         self.sep_feat_channels = separate_feature_channels
         self.scaling_startpoint = scaling_startpoint
@@ -53,8 +53,6 @@ class DynThresh:
             scale *= 1.0 - math.pow(self.step / max, self.sched_val)
         elif mode == "Linear Repeating":
             portion = ((self.step / max) * self.sched_val) % 1.0
-            start = math.floor(portion)
-            portion -= start
             scale *= (0.5 - portion) * 2 if portion < 0.5 else (portion - 0.5) * 2
         elif mode == "Cosine Repeating":
             scale *= math.cos((self.step / max) * 6.28318 * self.sched_val) * 0.5 + 0.5
