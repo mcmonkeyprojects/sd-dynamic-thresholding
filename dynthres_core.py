@@ -14,7 +14,7 @@ class DynThreshVariabilityMeasure(enum.IntEnum):
     AD = 1
 
 class DynThresh:
-    def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure,interpolate_phi,threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, power_val, experiment_mode, maxSteps):
+    def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure,interpolate_phi,threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
@@ -23,7 +23,7 @@ class DynThresh:
         self.cfg_scale_min = cfg_scale_min
         self.mimic_scale_min = mimic_scale_min
         self.experiment_mode = experiment_mode
-        self.power_val = power_val
+        self.sched_val  = sched_val
 
         self.sep_feat_channels = separate_feature_channels
         self.scaling_startpoint = scaling_startpoint
@@ -48,9 +48,18 @@ class DynThresh:
         elif mode == "Cosine Up":
             scale *= 1.0 - math.cos((self.step / max) * 1.5707)
         elif mode == "Power Up":
-            scale *= math.pow(self.step / max, self.power_val)
+            scale *= math.pow(self.step / max, self.sched_val)
         elif mode == "Power Down":
-            scale *= 1.0 - math.pow(self.step / max, self.power_val)
+            scale *= 1.0 - math.pow(self.step / max, self.sched_val)
+        elif mode == "Linear Repeating":
+            portion = ((self.step / max) * self.sched_val) % 1.0
+            start = math.floor(portion)
+            portion -= start
+            scale *= (0.5 - portion) * 2 if portion < 0.5 else (portion - 0.5) * 2
+        elif mode == "Cosine Repeating":
+            scale *= math.cos((self.step / max) * 6.28318 * self.sched_val) * 0.5 + 0.5
+        elif mode == "Sawtooth":
+            scale *= ((self.step / max) * self.sched_val) % 1.0
         scale += min
         return scale
 
