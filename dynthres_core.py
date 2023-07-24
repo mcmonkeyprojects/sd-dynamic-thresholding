@@ -14,7 +14,7 @@ class DynThreshVariabilityMeasure(enum.IntEnum):
     AD = 1
 
 class DynThresh:
-    def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure,interpolate_phi,threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps):
+    def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint,variability_measure,interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
