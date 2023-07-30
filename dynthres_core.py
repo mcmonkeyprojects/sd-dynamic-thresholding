@@ -1,17 +1,6 @@
-import enum
-
 import torch, math
 
 ######################### DynThresh Core #########################
-
-class DynThreshScalingStartpoint(enum.IntEnum):
-    ZERO = 0
-    MEAN = 1
-
-
-class DynThreshVariabilityMeasure(enum.IntEnum):
-    STD = 0
-    AD = 1
 
 class DynThresh:
     def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps):
@@ -90,47 +79,37 @@ class DynThresh:
 
         ### Get the maximum value of all datapoints (with an optional threshold percentile on the uncond)
 
-
-
-
-
         if self.sep_feat_channels:
-            if self.variability_measure == DynThreshVariabilityMeasure.AD:
+            if self.variability_measure == 'AD':
                 min_scaleref = mim_centered.abs().max(dim=2).values.unsqueeze(2)
                 cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
-            elif self.variability_measure == DynThreshVariabilityMeasure.STD:
+            elif self.variability_measure == 'STD':
                 min_scaleref = mim_centered.std(dim=2).unsqueeze(2)
                 cfg_scaleref = cfg_centered.std(dim=2).unsqueeze(2)
 
         else:
-            if self.variability_measure == DynThreshVariabilityMeasure.AD:
+            if self.variability_measure == 'AD':
                 min_scaleref = mim_centered.abs().max()
                 cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile)
-            elif self.variability_measure == DynThreshVariabilityMeasure.STD:
+            elif self.variability_measure == 'STD':
                 min_scaleref = mim_centered.std()
                 cfg_scaleref = cfg_centered.std()
 
-        if self.scaling_startpoint == DynThreshScalingStartpoint.MEAN:
-            if self.variability_measure == DynThreshVariabilityMeasure.AD:
+        if self.scaling_startpoint == 'MEAN':
+            if self.variability_measure == 'AD':
                 max_scalref = torch.maximum(min_scaleref, cfg_scaleref)
                 ### Clamp to the max
                 cfg_clamped = cfg_centered.clamp(-max_scalref, max_scalref)
                 ### Now shrink from the max to normalize and grow to the mimic scale (instead of the CFG scale)
                 cfg_renormalized = (cfg_clamped / max_scalref) * min_scaleref
-            elif self.variability_measure == DynThreshVariabilityMeasure.STD:
+            elif self.variability_measure == 'STD':
                 cfg_renormalized = (cfg_centered / cfg_scaleref) * min_scaleref
 
             ### Now add it back onto the averages to get into real scale again and return
             result = cfg_renormalized + cfg_means
-        elif self.scaling_startpoint == DynThreshScalingStartpoint.ZERO:
-
+        elif self.scaling_startpoint == 'ZERO':
             scaling_factor = min_scaleref / cfg_scaleref
-
             result = cfg_flattened * scaling_factor
-
-
-
-
 
         actualRes = result.unflatten(2, mim_target.shape[2:])
         if self.interpolate_phi != 1.0:

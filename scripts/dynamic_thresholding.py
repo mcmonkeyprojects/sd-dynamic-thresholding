@@ -13,7 +13,6 @@
 import gradio as gr
 import torch, traceback
 import dynthres_core
-from dynthres_core import DynThreshScalingStartpoint, DynThreshVariabilityMeasure
 from modules import scripts, script_callbacks, sd_samplers, sd_samplers_compvis, sd_samplers_kdiffusion, sd_samplers_common
 try:
     import dynthres_unipc
@@ -44,8 +43,8 @@ class Script(scripts.Script):
             mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0, elem_id='dynthres_mimic_scale')
             with gr.Accordion("Dynamic Thresholding Advanced Options", open=False, elem_id='dynthres_advanced_opts'):
                 separate_feature_channels = gr.Checkbox(value=True, label="Separate Feature Channels")
-                scaling_startpoint = gr.Radio(choices=[mode.name for mode in DynThreshScalingStartpoint], value=DynThreshScalingStartpoint.MEAN.name, label="Scaling Startpoint", type="index")
-                variability_measure = gr.Radio(choices=[mode.name for mode in DynThreshVariabilityMeasure], value=DynThreshVariabilityMeasure.AD.name, label="Variability Measure", type="index")
+                scaling_startpoint = gr.Radio(choices=['ZERO', 'MEAN'], value='MEAN', label="Scaling Startpoint", type="index")
+                variability_measure = gr.Radio(choices=['STD', 'AD'], value='AD', label="Variability Measure", type="index")
                 interpolate_phi = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label="Interpolate Phi",value=1.0)
                 threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp', elem_id='dynthres_threshold_percentile')
                 with gr.Row():
@@ -69,8 +68,8 @@ class Script(scripts.Script):
             (accordion, lambda d: gr.Accordion.update(visible="Dynamic thresholding enabled" in d)),
             (mimic_scale, "Mimic scale"),
             (separate_feature_channels, "Separate Feature Channels"),
-            (scaling_startpoint,lambda d: gr.Radio.update(value=d.get("Scaling Startpoint", "MEAN"))),
-            (variability_measure,lambda d: gr.Radio.update(value=d.get("Variability Measure", "AD"))),
+            (scaling_startpoint, lambda d: gr.Radio.update(value=d.get("Scaling Startpoint", "MEAN"))),
+            (variability_measure, lambda d: gr.Radio.update(value=d.get("Variability Measure", "AD"))),
             (interpolate_phi, "Interpolate Phi"),
             (threshold_percentile, "Threshold percentile"),
             (mimic_scale_min, "Mimic scale minimum"),
@@ -106,8 +105,8 @@ class Script(scripts.Script):
         p.extra_generation_params["Dynamic thresholding enabled"] = True
         p.extra_generation_params["Mimic scale"] = mimic_scale
         p.extra_generation_params["Separate Feature Channels"] = separate_feature_channels
-        p.extra_generation_params["Scaling Startpoint"] = DynThreshScalingStartpoint(scaling_startpoint).name
-        p.extra_generation_params["Variability Measure"] = DynThreshVariabilityMeasure(variability_measure).name
+        p.extra_generation_params["Scaling Startpoint"] = scaling_startpoint
+        p.extra_generation_params["Variability Measure"] = variability_measure
         p.extra_generation_params["Interpolate Phi"] = interpolate_phi
         p.extra_generation_params["Threshold percentile"] = threshold_percentile
         p.extra_generation_params["Sampler"] = orig_sampler_name
@@ -204,32 +203,12 @@ def make_axis_options():
             if x not in VALID_MODES:
                 raise RuntimeError(f"Unknown Scheduler: {x}")
 
-    def confirm_startpoint_choices(p, xs):
-        for x in xs:
-            if x not in [mode.name for mode in DynThreshScalingStartpoint]:
-                raise RuntimeError(f"Unknown Mode: {x}")
-
-
-    def confirm_variability_mesure_choices(p, xs):
-        for x in xs:
-            if x not in [mode.name for mode in DynThreshVariabilityMeasure]:
-                raise RuntimeError(f"Unknown Mode: {x}")
-
-    def apply_field_enum(field, EnumClass):
-        def fun(p, x, xs):
-            enum_x = EnumClass[x]
-            setattr(p, field, enum_x)
-
-        return fun
-
     extra_axis_options = [
         xyz_grid.AxisOption("[DynThres] Mimic Scale", float, apply_mimic_scale),
         xyz_grid.AxisOption("[DynThres] Separate Feature Channels", int,
                             xyz_grid.apply_field("dynthres_separate_feature_channels")),
-        xyz_grid.AxisOption("[DynThres] Scaling Startpoint", str, apply_field_enum("dynthres_scaling_startpoint", DynThreshScalingStartpoint),
-                            confirm=confirm_startpoint_choices, choices=lambda:[mode.name for mode in DynThreshScalingStartpoint]),
-        xyz_grid.AxisOption("[DynThres] Variability Measure", str, apply_field_enum("dynthres_variability_measure", DynThreshVariabilityMeasure),
-                            confirm=confirm_variability_mesure_choices, choices=lambda:[mode.name for mode in DynThreshVariabilityMeasure]),
+        xyz_grid.AxisOption("[DynThres] Scaling Startpoint", str, xyz_grid.apply_field("dynthres_scaling_startpoint"), choices=lambda:['ZERO', 'MEAN']),
+        xyz_grid.AxisOption("[DynThres] Variability Measure", str, xyz_grid.apply_field("dynthres_variability_measure"), choices=lambda:['STD', 'AD']),
         xyz_grid.AxisOption("[DynThres] Interpolate Phi", float, xyz_grid.apply_field("dynthres_interpolate_phi")),
         xyz_grid.AxisOption("[DynThres] Threshold Percentile", float, xyz_grid.apply_field("dynthres_threshold_percentile")),
         xyz_grid.AxisOption("[DynThres] Mimic Scheduler", str, xyz_grid.apply_field("dynthres_mimic_mode"), confirm=confirm_scheduler, choices=lambda: VALID_MODES),
