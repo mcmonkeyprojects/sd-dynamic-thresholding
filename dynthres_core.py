@@ -3,7 +3,7 @@ import torch, math
 ######################### DynThresh Core #########################
 
 class DynThresh:
-    def __init__(self, mimic_scale, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps):
+    def __init__(self, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
@@ -77,42 +77,43 @@ class DynThresh:
         cfg_centered = cfg_flattened - cfg_means
 
         if self.sep_feat_channels:
-            if self.variability_measure == 'AD':
-                min_scaleref = mim_centered.abs().max(dim=2).values.unsqueeze(2)
-                cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
-            elif self.variability_measure == 'STD':
+            if self.variability_measure == 'STD':
                 min_scaleref = mim_centered.std(dim=2).unsqueeze(2)
                 cfg_scaleref = cfg_centered.std(dim=2).unsqueeze(2)
+            else: # 'AD'
+                min_scaleref = mim_centered.abs().max(dim=2).values.unsqueeze(2)
+                cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
 
         else:
-            if self.variability_measure == 'AD':
-                min_scaleref = mim_centered.abs().max()
-                cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile)
-            elif self.variability_measure == 'STD':
+            if self.variability_measure == 'STD':
                 min_scaleref = mim_centered.std()
                 cfg_scaleref = cfg_centered.std()
+            else: # 'AD'
+                min_scaleref = mim_centered.abs().max()
+                cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile)
 
-        if self.scaling_startpoint == 'MEAN':
-            if self.variability_measure == 'AD':
+        if self.scaling_startpoint == 'ZERO':
+            scaling_factor = min_scaleref / cfg_scaleref
+            result = cfg_flattened * scaling_factor
+
+        else: # 'MEAN'
+            if self.variability_measure == 'STD':
+                cfg_renormalized = (cfg_centered / cfg_scaleref) * min_scaleref
+            else: # 'AD'
                 ### Get the maximum value of all datapoints (with an optional threshold percentile on the uncond)
                 max_scaleref = torch.maximum(min_scaleref, cfg_scaleref)
                 ### Clamp to the max
                 cfg_clamped = cfg_centered.clamp(-max_scaleref, max_scaleref)
                 ### Now shrink from the max to normalize and grow to the mimic scale (instead of the CFG scale)
                 cfg_renormalized = (cfg_clamped / max_scaleref) * min_scaleref
-            elif self.variability_measure == 'STD':
-                cfg_renormalized = (cfg_centered / cfg_scaleref) * min_scaleref
 
             ### Now add it back onto the averages to get into real scale again and return
             result = cfg_renormalized + cfg_means
-        elif self.scaling_startpoint == 'ZERO':
-            scaling_factor = min_scaleref / cfg_scaleref
-            result = cfg_flattened * scaling_factor
 
         actualRes = result.unflatten(2, mim_target.shape[2:])
+
         if self.interpolate_phi != 1.0:
             actualRes = actualRes * self.interpolate_phi + cfg_target * (1.0 - self.interpolate_phi)
-
 
         if self.experiment_mode == 1:
             num = actualRes.cpu().numpy()
