@@ -45,7 +45,7 @@ class Script(scripts.Script):
                 separate_feature_channels = gr.Checkbox(value=True, label="Separate Feature Channels")
                 scaling_startpoint = gr.Radio(choices=['ZERO', 'MEAN'], value='MEAN', label="Scaling Startpoint", type="index")
                 variability_measure = gr.Radio(choices=['STD', 'AD'], value='AD', label="Variability Measure", type="index")
-                interpolate_phi = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label="Interpolate Phi",value=1.0)
+                interpolate_phi = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label="Interpolate Phi", value=1.0)
                 threshold_percentile = gr.Slider(minimum=90.0, value=100.0, maximum=100.0, step=0.05, label='Top percentile of latents to clamp', elem_id='dynthres_threshold_percentile')
                 with gr.Row():
                     mimic_mode = gr.Dropdown(VALID_MODES, value="Constant", label="Mimic Scale Scheduler", elem_id='dynthres_mimic_mode')
@@ -173,7 +173,7 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
         weights = weights.reshape(*weights.shape, 1, 1, 1)
         self.main_class.step = self.step
-
+        
         if self.main_class.experiment_mode >= 4 and self.main_class.experiment_mode <= 5:
             # https://arxiv.org/pdf/2305.08891.pdf "Rescale CFG". It's not good, but if you want to test it, just set experiment_mode = 4 + phi.
             denoised = torch.clone(denoised_uncond)
@@ -202,7 +202,6 @@ def make_axis_options():
         for x in xs:
             if x not in VALID_MODES:
                 raise RuntimeError(f"Unknown Scheduler: {x}")
-
     extra_axis_options = [
         xyz_grid.AxisOption("[DynThres] Mimic Scale", float, apply_mimic_scale),
         xyz_grid.AxisOption("[DynThres] Separate Feature Channels", int,
