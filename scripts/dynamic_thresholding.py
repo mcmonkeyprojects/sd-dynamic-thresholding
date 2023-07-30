@@ -170,6 +170,8 @@ class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
         self.main_class = dtData
 
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
+        if isinstance(uncond, dict) and 'crossattn' in uncond:
+            uncond = uncond['crossattn']
         denoised_uncond = x_out[-uncond.shape[0]:]
         # conds_list shape is (batch, cond, 2)
         weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
