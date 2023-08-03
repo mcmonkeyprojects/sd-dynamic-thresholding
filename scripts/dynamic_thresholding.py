@@ -88,9 +88,12 @@ class Script(scripts.Script):
         if not enabled:
             return
         orig_sampler_name = p.sampler_name
+        orig_latent_sampler_name = getattr(p, 'latent_sampler', None)
         if orig_sampler_name in ["DDIM", "PLMS"]:
             raise RuntimeError(f"Cannot use sampler {orig_sampler_name} with Dynamic Thresholding")
-        if orig_sampler_name == 'UniPC' and p.enable_hr:
+        if orig_latent_sampler_name in ["DDIM", "PLMS"]:
+            raise RuntimeError(f"Cannot use secondary sampler {orig_latent_sampler_name} with Dynamic Thresholding")
+        if 'UniPC' in (orig_sampler_name, orig_latent_sampler_name) and p.enable_hr:
             raise RuntimeError(f"UniPC does not support Hires Fix. Auto WebUI silently swaps to DDIM for this, which DynThresh does not support. Please swap to a sampler capable of img2img processing for HR Fix to work.")
         mimic_scale = getattr(p, 'dynthres_mimic_scale', mimic_scale)
         separate_feature_channels = getattr(p, 'dynthres_separate_feature_channels', separate_feature_channels)
@@ -122,38 +125,60 @@ class Script(scripts.Script):
             p.extra_generation_params["Scheduler value"] = sched_val
         # Note: the ID number is to protect the edge case of multiple simultaneous runs with different settings
         Script.last_id += 1
-        fixed_sampler_name = f"{orig_sampler_name}_dynthres{Script.last_id}"
         # Percentage to portion
         threshold_percentile *= 0.01
-        # Make a placeholder sampler
-        sampler = sd_samplers.all_samplers_map[orig_sampler_name]
-        dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi)
-        if orig_sampler_name == "UniPC":
-            def uniPCConstructor(model):
-                return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
-            newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, uniPCConstructor, sampler.aliases, sampler.options)
-        else:
-            def newConstructor(model):
-                result = sampler.constructor(model)
-                cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, dtData)
-                result.model_wrap_cfg = cfg
-                return result
-            newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
+
+        def make_sampler(orig_sampler_name):
+            fixed_sampler_name = f"{orig_sampler_name}_dynthres{Script.last_id}"
+
+            # Make a placeholder sampler
+            sampler = sd_samplers.all_samplers_map[orig_sampler_name]
+            dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi)
+            if orig_sampler_name == "UniPC":
+                def uniPCConstructor(model):
+                    return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
+                newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, uniPCConstructor, sampler.aliases, sampler.options)
+            else:
+                def newConstructor(model):
+                    result = sampler.constructor(model)
+                    cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, dtData)
+                    result.model_wrap_cfg = cfg
+                    return result
+                newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
+            return fixed_sampler_name, newSampler
+
         # Apply for usage
         p.orig_sampler_name = orig_sampler_name
-        p.sampler_name = fixed_sampler_name
-        p.fixed_sampler_name = fixed_sampler_name
-        sd_samplers.all_samplers_map[fixed_sampler_name] = newSampler
+        p.orig_latent_sampler_name = orig_latent_sampler_name
+        p.fixed_samplers = []
+
+        if orig_latent_sampler_name:
+            latent_sampler_name, latentSampler = make_sampler(orig_latent_sampler_name)
+            sd_samplers.all_samplers_map[latent_sampler_name] = latentSampler
+            p.fixed_samplers.append(latent_sampler_name)
+            p.latent_sampler = latent_sampler_name
+
+        if orig_sampler_name != orig_latent_sampler_name:
+            p.sampler_name, newSampler = make_sampler(orig_sampler_name)
+            sd_samplers.all_samplers_map[p.sampler_name] = newSampler
+            p.fixed_samplers.append(p.sampler_name)
+        else:
+            p.sampler_name = p.latent_sampler
+
         if p.sampler is not None:
-            p.sampler = sd_samplers.create_sampler(fixed_sampler_name, p.sd_model)
+            p.sampler = sd_samplers.create_sampler(p.sampler_name, p.sd_model)
 
     def postprocess_batch(self, p, enabled, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi, batch_number, images):
         if not enabled or not hasattr(p, 'orig_sampler_name'):
             return
         p.sampler_name = p.orig_sampler_name
-        del sd_samplers.all_samplers_map[p.fixed_sampler_name]
+        if p.orig_latent_sampler_name:
+            p.latent_sampler = p.orig_latent_sampler_name
+        for added_sampler in p.fixed_samplers:
+            del sd_samplers.all_samplers_map[added_sampler]
+        del p.fixed_samplers
         del p.orig_sampler_name
-        del p.fixed_sampler_name
+        del p.orig_latent_sampler_name
 
 ######################### CompVis Implementation logic #########################
 
