@@ -53,8 +53,8 @@ class Script(scripts.Script):
                 sched_val = gr.Slider(minimum=0.0, maximum=40.0, step=0.5, value=4.0, visible=False, label="Scheduler Value", info="Value unique to the scheduler mode - for Power Up/Down, this is the power. For Linear/Cosine Repeating, this is the number of repeats per image.", elem_id='dynthres_sched_val')
                 with gr.Row():
                     separate_feature_channels = gr.Checkbox(value=True, label="Separate Feature Channels", elem_id='dynthres_separate_feature_channels')
-                    scaling_startpoint = gr.Radio(["ZERO", "MEAN"], value="MEAN", label="Scaling Startpoint", elem_id='dynthres_scaling_startpoint')
-                    variability_measure = gr.Radio(["STD", "AD"], value="AD", label="Variability Measure", elem_id='dynthres_variability_measure')
+                    scaling_startpoint = gr.Radio(["ZERO", "MEAN"], value="MEAN", label="Scaling Startpoint")
+                    variability_measure = gr.Radio(["STD", "AD"], value="AD", label="Variability Measure")
         def shouldShowSchedulerValue(cfgMode, mimicMode):
             sched_vis = cfgMode in MODES_WITH_VALUE or mimicMode in MODES_WITH_VALUE
             return vis_change(sched_vis), vis_change(mimicMode != "Constant"), vis_change(cfgMode != "Constant")
