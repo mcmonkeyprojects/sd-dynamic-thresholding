@@ -78,34 +78,34 @@ class DynThresh:
 
         if self.sep_feat_channels:
             if self.variability_measure == 'STD':
-                min_scaleref = mim_centered.std(dim=2).unsqueeze(2)
+                mim_scaleref = mim_centered.std(dim=2).unsqueeze(2)
                 cfg_scaleref = cfg_centered.std(dim=2).unsqueeze(2)
             else: # 'AD'
-                min_scaleref = mim_centered.abs().max(dim=2).values.unsqueeze(2)
+                mim_scaleref = mim_centered.abs().max(dim=2).values.unsqueeze(2)
                 cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile, dim=2).unsqueeze(2)
 
         else:
             if self.variability_measure == 'STD':
-                min_scaleref = mim_centered.std()
+                mim_scaleref = mim_centered.std()
                 cfg_scaleref = cfg_centered.std()
             else: # 'AD'
-                min_scaleref = mim_centered.abs().max()
+                mim_scaleref = mim_centered.abs().max()
                 cfg_scaleref = torch.quantile(cfg_centered.abs(), self.threshold_percentile)
 
         if self.scaling_startpoint == 'ZERO':
-            scaling_factor = min_scaleref / cfg_scaleref
+            scaling_factor = mim_scaleref / cfg_scaleref
             result = cfg_flattened * scaling_factor
 
         else: # 'MEAN'
             if self.variability_measure == 'STD':
-                cfg_renormalized = (cfg_centered / cfg_scaleref) * min_scaleref
+                cfg_renormalized = (cfg_centered / cfg_scaleref) * mim_scaleref
             else: # 'AD'
                 ### Get the maximum value of all datapoints (with an optional threshold percentile on the uncond)
-                max_scaleref = torch.maximum(min_scaleref, cfg_scaleref)
+                max_scaleref = torch.maximum(mim_scaleref, cfg_scaleref)
                 ### Clamp to the max
                 cfg_clamped = cfg_centered.clamp(-max_scaleref, max_scaleref)
                 ### Now shrink from the max to normalize and grow to the mimic scale (instead of the CFG scale)
-                cfg_renormalized = (cfg_clamped / max_scaleref) * min_scaleref
+                cfg_renormalized = (cfg_clamped / max_scaleref) * mim_scaleref
 
             ### Now add it back onto the averages to get into real scale again and return
             result = cfg_renormalized + cfg_means
