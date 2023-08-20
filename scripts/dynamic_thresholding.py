@@ -18,6 +18,10 @@ try:
     import dynthres_unipc
 except Exception as e:
     print(f"\n\n======\nError! UniPC sampler support failed to load! Is your WebUI up to date?\n(Error: {e})\n======")
+try:
+    from modules.sd_samplers_kdiffusion import CFGDenoiserKDiffusion as cfgdenoisekdiff
+except Exception as e:
+    from modules.sd_samplers_kdiffusion import CFGDenoiser as cfgdenoisekdiff
 
 ######################### Data values #########################
 VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down", "Linear Repeating", "Cosine Repeating", "Sawtooth"]
@@ -189,7 +193,7 @@ class CustomVanillaSDSampler(sd_samplers_compvis.VanillaStableDiffusionSampler):
 
 ######################### K-Diffusion Implementation logic #########################
 
-class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiserKDiffusion):
+class CustomCFGDenoiser(cfgdenoisekdiff):
     def __init__(self, model, dtData):
         super().__init__(model)
         self.main_class = dtData
