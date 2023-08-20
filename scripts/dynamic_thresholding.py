@@ -189,7 +189,7 @@ class CustomVanillaSDSampler(sd_samplers_compvis.VanillaStableDiffusionSampler):
 
 ######################### K-Diffusion Implementation logic #########################
 
-class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiser):
+class CustomCFGDenoiser(sd_samplers_kdiffusion.CFGDenoiserKDiffusion):
     def __init__(self, model, dtData):
         super().__init__(model)
         self.main_class = dtData
