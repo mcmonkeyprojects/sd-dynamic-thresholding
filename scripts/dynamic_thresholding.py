@@ -13,15 +13,18 @@
 import gradio as gr
 import torch, traceback
 import dynthres_core
-from modules import scripts, script_callbacks, sd_samplers, sd_samplers_compvis, sd_samplers_kdiffusion, sd_samplers_common
+from modules import scripts, script_callbacks, sd_samplers, sd_samplers_compvis, sd_samplers_common
 try:
     import dynthres_unipc
 except Exception as e:
     print(f"\n\n======\nError! UniPC sampler support failed to load! Is your WebUI up to date?\n(Error: {e})\n======")
 try:
     from modules.sd_samplers_kdiffusion import CFGDenoiserKDiffusion as cfgdenoisekdiff
+    IS_AUTO_16 = True
 except Exception as e:
+    print(f"\n\n======\nWarning! Using legacy KDiff version! Is your WebUI up to date?\n======")
     from modules.sd_samplers_kdiffusion import CFGDenoiser as cfgdenoisekdiff
+    IS_AUTO_16 = False
 
 ######################### Data values #########################
 VALID_MODES = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down", "Linear Repeating", "Cosine Repeating", "Sawtooth"]
@@ -145,7 +148,7 @@ class Script(scripts.Script):
             else:
                 def newConstructor(model):
                     result = sampler.constructor(model)
-                    cfg = CustomCFGDenoiser(result.model_wrap_cfg.inner_model, dtData)
+                    cfg = CustomCFGDenoiser(result if IS_AUTO_16 else result.model_wrap_cfg.inner_model, dtData)
                     result.model_wrap_cfg = cfg
                     return result
                 newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
