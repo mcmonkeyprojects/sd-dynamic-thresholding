@@ -2,7 +2,7 @@
 
 ### Concept
 
-Extension for the [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) that enables a way to use higher CFG Scales without color issues.
+Extension for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) and [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) that enables a way to use higher CFG Scales without color issues.
 
 This works by clamping latents between steps. You can read more [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/3962) or [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/3268) or [this tweet](https://twitter.com/Birchlabs/status/1582165379832348672).
 
@@ -10,7 +10,7 @@ This works by clamping latents between steps. You can read more [here](https://g
 
 ### Credit
 
-The core functionality of this PR was originally developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva), further development and research is the work of mcmonkey4eva and JDMLeverton.
+The core functionality of this PR was originally developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an Auto WebUI extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva), further development and research done by [mcmonkey4eva](https://github.com/mcmonkey4eva) and JDMLeverton. Ported by ComfyUI by [TwoDukes](https://github.com/TwoDukes) and [mcmonkey4eva](https://github.com/mcmonkey4eva).
 
 --------------
 
@@ -33,33 +33,49 @@ View at <https://sd.mcmonkey.org/dynthresh/>.
 
 --------------
 
-### Installation
+### Installation and Usage
+
+#### Auto WebUI
 
 - You must have the [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) already installed and working. Refer to that project's readme for help with that.
 - Open the WebUI, go to to the `Extensions` tab
-<!--- -EITHER- Option **A**:
+- -EITHER- Option **A**:
     - go to the `Available` tab with
     - click `Load from` (with the default list)
     - Scroll down to find `Dynamic Thresholding (CFG Scale Fix)`, or use `CTRL+F` to find it
-- -OR- Option **B**: -->
+- -OR- Option **B**:
     - Click on `Install from URL`
     - Copy/paste this project's URL into the `URL for extension's git repository` textbox: `https://github.com/mcmonkeyprojects/sd-dynamic-thresholding`
 - Click `Install`
 - Restart or reload the WebUI
-
---------------
-
-### Usage
-
-- Install the extension and restart.
 - Go to txt2img or img2img
 - Check the `Enable Dynamic Thresholding (CFG Scale Fix)` box
 - Read the info on-page and set the sliders where you want em.
 - Click generate.
 
-### Supported Extensions
+
+#### ComfyUI
+
+- Must have [ComfyUI](https://github.com/comfyanonymous/ComfyUI) already installed and working. Refer to that project's readme for help with that.
+- -EITHER- Option **A**: (TODO: Manager install)
+- -OR- Option **B**:
+    - `cd ComfyUI/custom_nodes`
+    - `git clone https://github.com/mcmonkeyprojects/sd-dynamic-thresholding`
+    - restart ComfyUI
+    - Add node `advanced/mcmonkey/DynamicThresholdingSimple` (or `Full`)
+    - Link your model to the input, and then link the output model to your KSampler's input
+
+![img](github/comfy_node.png)
+
+--------------
+
+### Supported Auto WebUI Extensions
 
 - This can be configured within the [Infinity Grid Generator](https://github.com/mcmonkeyprojects/sd-infinity-grid-generator-script#supported-extensions) extension, see the readme of that project for details.
+
+### ComfyUI Compatibility
+
+- This would work with any variant of the `KSampler` node, including custom ones, so long as they do not totally override the internal sampling function (most don't).
 
 ----------------------
 
