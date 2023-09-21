@@ -3,6 +3,11 @@ import torch, math
 ######################### DynThresh Core #########################
 
 class DynThresh:
+
+    Modes = ["Constant", "Linear Down", "Cosine Down", "Half Cosine Down", "Linear Up", "Cosine Up", "Half Cosine Up", "Power Up", "Power Down", "Linear Repeating", "Cosine Repeating", "Sawtooth"]
+    Startpoints = ["MEAN", "ZERO"]
+    Variabilities = ["AD", "STD"]
+
     def __init__(self, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
