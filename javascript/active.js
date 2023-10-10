@@ -12,6 +12,7 @@
             badge.checked = checkbox.checked;
             badge.addEventListener('click', (e) => {
                 checkbox.checked = !checkbox.checked;
+                badge.checked = checkbox.checked;
                 checkbox.dispatchEvent(new Event('change'));
                 e.stopPropagation();
             });
@@ -23,7 +24,7 @@
             space.innerHTML = "&nbsp;";
             span.insertBefore(space, badge.nextSibling);
 
-            checkbox.addEventListener('click', () => {
+            checkbox.addEventListener('change', () => {
                 let badge = accordion.querySelector('.label-wrap span input');
                 badge.checked = checkbox.checked;
             });
