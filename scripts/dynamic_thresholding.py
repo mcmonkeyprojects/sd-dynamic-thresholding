@@ -42,6 +42,8 @@ class Script(scripts.Script):
         def vis_change(isVis):
             return {"visible": isVis, "__type__": "update"}
         # "Dynamic Thresholding (CFG Scale Fix)"
+        dtrue = gr.Checkbox(value=True, visible=False)
+        dfalse = gr.Checkbox(value=False, visible=False)
         with gr.Accordion("Dynamic Thresholding (CFG Scale Fix)", open=False, elem_id="dynthres_" + ("img2img" if is_img2img else "txt2img")):
             with gr.Row():
                 enabled = gr.Checkbox(value=False, label="Enable Dynamic Thresholding (CFG Scale Fix)", elem_classes=["dynthres-enabled"])
@@ -68,8 +70,9 @@ class Script(scripts.Script):
         cfg_mode.change(shouldShowSchedulerValue, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
         mimic_mode.change(shouldShowSchedulerValue, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
         enabled.change(
-            fn=lambda x: {"visible": x, "__type__": "update"},
-            inputs=[enabled],
+            _js="dynthres_update_enabled",
+            fn=lambda x, y: {"visible": x, "__type__": "update"},
+            inputs=[enabled, dtrue if is_img2img else dfalse],
             outputs=[accordion],
             show_progress = False)
         self.infotext_fields = (

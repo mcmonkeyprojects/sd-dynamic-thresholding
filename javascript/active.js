@@ -1,9 +1,23 @@
+let dynthres_update_enabled = function() {
+    return Array.from(arguments);
+};
+
 (function(){
     let accordions = {};
     let enabled = {};
     onUiUpdate(() => {
         let accordion_id_prefix = "#dynthres_";
         let extension_checkbox_class = ".dynthres-enabled";
+
+        dynthres_update_enabled = function() {
+            let res = Array.from(arguments);
+            let tabname = res[1] ? "img2img" : "txt2img";
+
+            let checkbox = accordions[tabname]?.querySelector(extension_checkbox_class + ' input');
+            checkbox?.dispatchEvent(new Event('change'));
+
+            return res;
+        };
 
         function attachEnabledButtonListener(checkbox, accordion) {
             let span = accordion.querySelector('.label-wrap span');
