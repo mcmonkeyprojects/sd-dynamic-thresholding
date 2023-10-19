@@ -12,7 +12,7 @@ except Exception as e:
 
 # The majority of this is straight from modules.models/diffusion/uni_pc/sampler.py
 # Unfortunately that's not an easy middle-injection point, so, just copypasta'd it all
-# It's likely they designed it to intentionally be as difficult to inject into as possible :(
+# It's like they designed it to intentionally be as difficult to inject into as possible :(
 # (It has hooks but not in useful locations)
 # I stripped the original comments for brevity.
 # Some never-used code (scheduler modes, noise modes, guidance modes) have been removed as well for brevity.
