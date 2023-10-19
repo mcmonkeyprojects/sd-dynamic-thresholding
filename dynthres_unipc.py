@@ -6,15 +6,12 @@ from modules import shared
 try:
     from modules.models.diffusion import uni_pc
 except Exception as e:
-    try:
-        from modules.unipc import sampler
-        class SDNextUniPC(object):
-            def __init__(self):
-                self.sampler = sampler
-                self.uni_pc = sampler
-        uni_pc = SDNextUniPC()
-    except Exception as ex:
-        print(f"\n\n======\nError! WebUI and SD.Next UniPC sampler support failed to load.\n(Errors: {e}, {ex})\n======")
+    from modules.unipc import sampler
+    class VladUniPC(object):
+        def __init__(self):
+            self.sampler = sampler
+            self.uni_pc = sampler
+    uni_pc = VladUniPC()
 
 ######################### UniPC Implementation logic #########################
 
