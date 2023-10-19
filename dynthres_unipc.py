@@ -3,7 +3,15 @@ import torch
 import math
 import traceback
 from modules import shared
-from modules.models.diffusion import uni_pc
+try:
+    from modules.models.diffusion import uni_pc
+except Exception as e:
+    from modules.unipc import sampler
+    class VladUniPC(object):
+        def __init__(self):
+            self.sampler = sampler
+            self.uni_pc = sampler
+    uni_pc = VladUniPC()
 
 ######################### UniPC Implementation logic #########################
 
