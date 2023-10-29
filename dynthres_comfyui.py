@@ -34,7 +34,7 @@ class DynamicThresholdingComfyNode:
             uncond = args["uncond"]
             cond_scale = args["cond_scale"]
             time_step = args["timestep"]
-            dynamic_thresh.step = time_step[0]
+            dynamic_thresh.step = 999 - time_step[0]
 
             return dynamic_thresh.dynthresh(x_out, uncond, cond_scale, None)
 
@@ -67,7 +67,7 @@ class DynamicThresholdingSimpleComfyNode:
             uncond = args["uncond"]
             cond_scale = args["cond_scale"]
             time_step = args["timestep"]
-            dynamic_thresh.step = time_step[0]
+            dynamic_thresh.step = 999 - time_step[0]
 
             return dynamic_thresh.dynthresh(x_out, uncond, cond_scale, None)
 
