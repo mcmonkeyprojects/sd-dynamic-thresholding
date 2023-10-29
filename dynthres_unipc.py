@@ -16,7 +16,7 @@ except Exception as e:
 # (It has hooks but not in useful locations)
 # I stripped the original comments for brevity.
 # Some never-used code (scheduler modes, noise modes, guidance modes) have been removed as well for brevity.
-# The actual impl comes down to just the last line in particular, and the `beforeSample` insert to track step count.
+# The actual impl comes down to just the last line in particular, and the `before_sample` insert to track step count.
 
 class CustomUniPCSampler(uni_pc.sampler.UniPCSampler):
     def __init__(self, model, **kwargs):
@@ -50,16 +50,16 @@ class CustomUniPCSampler(uni_pc.sampler.UniPCSampler):
             img = x_T
         ns = uni_pc.uni_pc.NoiseScheduleVP('discrete', alphas_cumprod=self.alphas_cumprod)
         model_type = "v" if self.model.parameterization == "v" else "noise"
-        model_fn = CustomUniPC_model_wrapper(lambda x, t, c: self.model.apply_model(x, t, c), ns, model_type=model_type, guidance_scale=unconditional_guidance_scale, dtData=self.main_class)
+        model_fn = CustomUniPC_model_wrapper(lambda x, t, c: self.model.apply_model(x, t, c), ns, model_type=model_type, guidance_scale=unconditional_guidance_scale, dt_data=self.main_class)
         self.main_class.step = 0
-        def beforeSample(x, t, cond, uncond):
+        def before_sample(x, t, cond, uncond):
             self.main_class.step += 1
             return self.before_sample(x, t, cond, uncond)
-        uni_pc_inst = uni_pc.uni_pc.UniPC(model_fn, ns, predict_x0=True, thresholding=False, variant=shared.opts.uni_pc_variant, condition=conditioning, unconditional_condition=unconditional_conditioning, before_sample=beforeSample, after_sample=self.after_sample, after_update=self.after_update)
+        uni_pc_inst = uni_pc.uni_pc.UniPC(model_fn, ns, predict_x0=True, thresholding=False, variant=shared.opts.uni_pc_variant, condition=conditioning, unconditional_condition=unconditional_conditioning, before_sample=before_sample, after_sample=self.after_sample, after_update=self.after_update)
         x = uni_pc_inst.sample(img, steps=S, skip_type=shared.opts.uni_pc_skip_type, method="multistep", order=shared.opts.uni_pc_order, lower_order_final=shared.opts.uni_pc_lower_order_final)
         return x.to(device), None
 
-def CustomUniPC_model_wrapper(model, noise_schedule, model_type="noise", model_kwargs={}, guidance_scale=1.0, dtData=None):
+def CustomUniPC_model_wrapper(model, noise_schedule, model_type="noise", model_kwargs={}, guidance_scale=1.0, dt_data=None):
     def expand_dims(v, dims):
         return v[(...,) + (None,)*(dims - 1)]
     def get_model_input_time(t_continuous):
@@ -107,5 +107,5 @@ def CustomUniPC_model_wrapper(model, noise_schedule, model_type="noise", model_k
                 c_in = torch.cat([unconditional_condition, condition])
             noise_uncond, noise = noise_pred_fn(x_in, t_in, cond=c_in).chunk(2)
             #return noise_uncond + guidance_scale * (noise - noise_uncond)
-            return dtData.dynthresh(noise, noise_uncond, guidance_scale, None)
+            return dt_data.dynthresh(noise, noise_uncond, guidance_scale, None)
     return model_fn

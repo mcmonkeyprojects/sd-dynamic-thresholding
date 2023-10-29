@@ -23,7 +23,7 @@ class DynThresh:
         self.variability_measure = variability_measure
         self.interpolate_phi = interpolate_phi
 
-    def interpretScale(self, scale, mode, min):
+    def interpret_scale(self, scale, mode, min):
         scale -= min
         max = self.max_steps - 1
         frac = self.step / max
@@ -56,8 +56,8 @@ class DynThresh:
         return scale
 
     def dynthresh(self, cond, uncond, cfg_scale, weights):
-        mimic_scale = self.interpretScale(self.mimic_scale, self.mimic_mode, self.mimic_scale_min)
-        cfg_scale = self.interpretScale(cfg_scale, self.cfg_mode, self.cfg_scale_min)
+        mimic_scale = self.interpret_scale(self.mimic_scale, self.mimic_mode, self.mimic_scale_min)
+        cfg_scale = self.interpret_scale(cfg_scale, self.cfg_mode, self.cfg_scale_min)
         # uncond shape is (batch, 4, height, width)
         conds_per_batch = cond.shape[0] / uncond.shape[0]
         assert conds_per_batch == int(conds_per_batch), "Expected # of conds per batch to be constant across batches"
@@ -116,13 +116,13 @@ class DynThresh:
             ### Now add it back onto the averages to get into real scale again and return
             result = cfg_renormalized + cfg_means
 
-        actualRes = result.unflatten(2, mim_target.shape[2:])
+        actual_res = result.unflatten(2, mim_target.shape[2:])
 
         if self.interpolate_phi != 1.0:
-            actualRes = actualRes * self.interpolate_phi + cfg_target * (1.0 - self.interpolate_phi)
+            actual_res = actual_res * self.interpolate_phi + cfg_target * (1.0 - self.interpolate_phi)
 
         if self.experiment_mode == 1:
-            num = actualRes.cpu().numpy()
+            num = actual_res.cpu().numpy()
             for y in range(0, 64):
                 for x in range (0, 64):
                     if num[0][0][y][x] > 1.0:
@@ -131,19 +131,19 @@ class DynThresh:
                         num[0][1][y][x] *= 0.5
                     if num[0][2][y][x] > 1.5:
                         num[0][2][y][x] *= 0.5
-            actualRes = torch.from_numpy(num).to(device=uncond.device)
+            actual_res = torch.from_numpy(num).to(device=uncond.device)
         elif self.experiment_mode == 2:
-            num = actualRes.cpu().numpy()
+            num = actual_res.cpu().numpy()
             for y in range(0, 64):
                 for x in range (0, 64):
-                    overScale = False
+                    over_scale = False
                     for z in range(0, 4):
                         if abs(num[0][z][y][x]) > 1.5:
-                            overScale = True
-                    if overScale:
+                            over_scale = True
+                    if over_scale:
                         for z in range(0, 4):
                             num[0][z][y][x] *= 0.7
-            actualRes = torch.from_numpy(num).to(device=uncond.device)
+            actual_res = torch.from_numpy(num).to(device=uncond.device)
         elif self.experiment_mode == 3:
             coefs = torch.tensor([
                 #  R       G        B      W
@@ -152,16 +152,16 @@ class DynThresh:
                 [-0.158,  0.189,  0.264, 0.0], # L3
                 [-0.184, -0.271, -0.473, 1.0], # L4
             ], device=uncond.device)
-            resRGB = torch.einsum("laxy,ab -> lbxy", actualRes, coefs)
-            maxR, maxG, maxB, maxW = resRGB[0][0].max(), resRGB[0][1].max(), resRGB[0][2].max(), resRGB[0][3].max()
-            maxRGB = max(maxR, maxG, maxB)
-            print(f"test max = r={maxR}, g={maxG}, b={maxB}, w={maxW}, rgb={maxRGB}")
+            res_rgb = torch.einsum("laxy,ab -> lbxy", actual_res, coefs)
+            max_r, max_g, max_b, max_w = res_rgb[0][0].max(), res_rgb[0][1].max(), res_rgb[0][2].max(), res_rgb[0][3].max()
+            max_rgb = max(max_r, max_g, max_b)
+            print(f"test max = r={max_r}, g={max_g}, b={max_b}, w={max_w}, rgb={max_rgb}")
             if self.step / (self.max_steps - 1) > 0.2:
-                if maxRGB < 2.0 and maxW < 3.0:
-                    resRGB /= maxRGB / 2.4
+                if max_rgb < 2.0 and max_w < 3.0:
+                    res_rgb /= max_rgb / 2.4
             else:
-                if maxRGB > 2.4 and maxW > 3.0:
-                    resRGB /= maxRGB / 2.4
-            actualRes = torch.einsum("laxy,ab -> lbxy", resRGB, coefs.inverse())
+                if max_rgb > 2.4 and max_w > 3.0:
+                    res_rgb /= max_rgb / 2.4
+            actual_res = torch.einsum("laxy,ab -> lbxy", res_rgb, coefs.inverse())
 
-        return actualRes
+        return actual_res

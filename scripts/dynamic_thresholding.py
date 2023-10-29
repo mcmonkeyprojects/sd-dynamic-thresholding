@@ -39,8 +39,8 @@ class Script(scripts.Script):
         return scripts.AlwaysVisible
 
     def ui(self, is_img2img):
-        def vis_change(isVis):
-            return {"visible": isVis, "__type__": "update"}
+        def vis_change(is_vis):
+            return {"visible": is_vis, "__type__": "update"}
         # "Dynamic Thresholding (CFG Scale Fix)"
         dtrue = gr.Checkbox(value=True, visible=False)
         dfalse = gr.Checkbox(value=False, visible=False)
@@ -64,11 +64,11 @@ class Script(scripts.Script):
                         separate_feature_channels = gr.Checkbox(value=True, label="Separate Feature Channels", elem_id='dynthres_separate_feature_channels')
                         scaling_startpoint = gr.Radio(["ZERO", "MEAN"], value="MEAN", label="Scaling Startpoint")
                         variability_measure = gr.Radio(["STD", "AD"], value="AD", label="Variability Measure")
-        def shouldShowSchedulerValue(cfgMode, mimicMode):
-            sched_vis = cfgMode in MODES_WITH_VALUE or mimicMode in MODES_WITH_VALUE
-            return vis_change(sched_vis), vis_change(mimicMode != "Constant"), vis_change(cfgMode != "Constant")
-        cfg_mode.change(shouldShowSchedulerValue, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
-        mimic_mode.change(shouldShowSchedulerValue, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
+        def should_show_scheduler_value(cfg_mode, mimic_mode):
+            sched_vis = cfg_mode in MODES_WITH_VALUE or mimic_mode in MODES_WITH_VALUE
+            return vis_change(sched_vis), vis_change(mimic_mode != "Constant"), vis_change(cfg_mode != "Constant")
+        cfg_mode.change(should_show_scheduler_value, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
+        mimic_mode.change(should_show_scheduler_value, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
         enabled.change(
             _js="dynthres_update_enabled",
             fn=lambda x, y: {"visible": x, "__type__": "update"},
@@ -143,19 +143,19 @@ class Script(scripts.Script):
 
             # Make a placeholder sampler
             sampler = sd_samplers.all_samplers_map[orig_sampler_name]
-            dtData = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi)
+            dt_data = dynthres_core.DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, p.steps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi)
             if orig_sampler_name == "UniPC":
-                def uniPCConstructor(model):
-                    return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dtData)
-                newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, uniPCConstructor, sampler.aliases, sampler.options)
+                def unipc_constructor(model):
+                    return CustomVanillaSDSampler(dynthres_unipc.CustomUniPCSampler, model, dt_data)
+                new_sampler = sd_samplers_common.SamplerData(fixed_sampler_name, unipc_constructor, sampler.aliases, sampler.options)
             else:
-                def newConstructor(model):
+                def new_constructor(model):
                     result = sampler.constructor(model)
-                    cfg = CustomCFGDenoiser(result if IS_AUTO_16 else result.model_wrap_cfg.inner_model, dtData)
+                    cfg = CustomCFGDenoiser(result if IS_AUTO_16 else result.model_wrap_cfg.inner_model, dt_data)
                     result.model_wrap_cfg = cfg
                     return result
-                newSampler = sd_samplers_common.SamplerData(fixed_sampler_name, newConstructor, sampler.aliases, sampler.options)
-            return fixed_sampler_name, newSampler
+                new_sampler = sd_samplers_common.SamplerData(fixed_sampler_name, new_constructor, sampler.aliases, sampler.options)
+            return fixed_sampler_name, new_sampler
 
         # Apply for usage
         p.orig_sampler_name = orig_sampler_name
@@ -163,14 +163,14 @@ class Script(scripts.Script):
         p.fixed_samplers = []
 
         if orig_latent_sampler_name:
-            latent_sampler_name, latentSampler = make_sampler(orig_latent_sampler_name)
-            sd_samplers.all_samplers_map[latent_sampler_name] = latentSampler
+            latent_sampler_name, latent_sampler = make_sampler(orig_latent_sampler_name)
+            sd_samplers.all_samplers_map[latent_sampler_name] = latent_sampler
             p.fixed_samplers.append(latent_sampler_name)
             p.latent_sampler = latent_sampler_name
 
         if orig_sampler_name != orig_latent_sampler_name:
-            p.sampler_name, newSampler = make_sampler(orig_sampler_name)
-            sd_samplers.all_samplers_map[p.sampler_name] = newSampler
+            p.sampler_name, new_sampler = make_sampler(orig_sampler_name)
+            sd_samplers.all_samplers_map[p.sampler_name] = new_sampler
             p.fixed_samplers.append(p.sampler_name)
         else:
             p.sampler_name = p.latent_sampler
@@ -193,16 +193,16 @@ class Script(scripts.Script):
 ######################### CompVis Implementation logic #########################
 
 class CustomVanillaSDSampler(sd_samplers_compvis.VanillaStableDiffusionSampler):
-    def __init__(self, constructor, sd_model, dtData):
+    def __init__(self, constructor, sd_model, dt_data):
         super().__init__(constructor, sd_model)
-        self.sampler.main_class = dtData
+        self.sampler.main_class = dt_data
 
 ######################### K-Diffusion Implementation logic #########################
 
 class CustomCFGDenoiser(cfgdenoisekdiff):
-    def __init__(self, model, dtData):
+    def __init__(self, model, dt_data):
         super().__init__(model)
-        self.main_class = dtData
+        self.main_class = dt_data
 
     def combine_denoised(self, x_out, conds_list, uncond, cond_scale):
         if isinstance(uncond, dict) and 'crossattn' in uncond:
@@ -258,11 +258,11 @@ def make_axis_options():
     if not any("[DynThres]" in x.label for x in xyz_grid.axis_options):
         xyz_grid.axis_options.extend(extra_axis_options)
 
-def callbackBeforeUi():
+def callback_before_ui():
     try:
         make_axis_options()
     except Exception as e:
         traceback.print_exc()
         print(f"Failed to add support for X/Y/Z Plot Script because: {e}")
 
-script_callbacks.on_before_ui(callbackBeforeUi)
+script_callbacks.on_before_ui(callback_before_ui)
