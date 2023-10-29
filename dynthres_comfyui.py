@@ -29,17 +29,17 @@ class DynamicThresholdingComfyNode:
 
         dynamic_thresh = DynThresh(mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, 0, 999, separate_feature_channels == "enable", scaling_startpoint, variability_measure, interpolate_phi)
         
-        def sampler_dyn_thrash(args):
-            x_out = args["cond"]
+        def sampler_dyn_thresh(args):
+            cond = args["cond"]
             uncond = args["uncond"]
             cond_scale = args["cond_scale"]
             time_step = args["timestep"]
             dynamic_thresh.step = 999 - time_step[0]
 
-            return dynamic_thresh.dynthresh(x_out, uncond, cond_scale, None)
+            return dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
 
         m = model.clone()
-        m.set_model_sampler_cfg_function(sampler_dyn_thrash)
+        m.set_model_sampler_cfg_function(sampler_dyn_thresh)
         return (m, )
 
 class DynamicThresholdingSimpleComfyNode:
@@ -62,7 +62,7 @@ class DynamicThresholdingSimpleComfyNode:
 
         dynamic_thresh = DynThresh(mimic_scale, threshold_percentile, "CONSTANT", 0, "CONSTANT", 0, 0, 0, 999, False, "MEAN", "AD", 1)
         
-        def sampler_dyn_thrash(args):
+        def sampler_dyn_thresh(args):
             cond = args["cond"]
             uncond = args["uncond"]
             cond_scale = args["cond_scale"]
@@ -72,5 +72,5 @@ class DynamicThresholdingSimpleComfyNode:
             return dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
 
         m = model.clone()
-        m.set_model_sampler_cfg_function(sampler_dyn_thrash)
+        m.set_model_sampler_cfg_function(sampler_dyn_thresh)
         return (m, )
