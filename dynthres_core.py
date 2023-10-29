@@ -8,12 +8,12 @@ class DynThresh:
     Startpoints = ["MEAN", "ZERO"]
     Variabilities = ["AD", "STD"]
 
-    def __init__(self, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, maxSteps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi):
+    def __init__(self, mimic_scale, threshold_percentile, mimic_mode, mimic_scale_min, cfg_mode, cfg_scale_min, sched_val, experiment_mode, max_steps, separate_feature_channels, scaling_startpoint, variability_measure, interpolate_phi):
         self.mimic_scale = mimic_scale
         self.threshold_percentile = threshold_percentile
         self.mimic_mode = mimic_mode
         self.cfg_mode = cfg_mode
-        self.maxSteps = maxSteps
+        self.max_steps = max_steps
         self.cfg_scale_min = cfg_scale_min
         self.mimic_scale_min = mimic_scale_min
         self.experiment_mode = experiment_mode
@@ -25,32 +25,33 @@ class DynThresh:
 
     def interpretScale(self, scale, mode, min):
         scale -= min
-        max = self.maxSteps - 1
+        max = self.max_steps - 1
+        frac = self.step / max
         if mode == "Constant":
             pass
         elif mode == "Linear Down":
-            scale *= 1.0 - (self.step / max)
+            scale *= 1.0 - frac
         elif mode == "Half Cosine Down":
-            scale *= math.cos((self.step / max))
+            scale *= math.cos(frac)
         elif mode == "Cosine Down":
-            scale *= math.cos((self.step / max) * 1.5707)
+            scale *= math.cos(frac * 1.5707)
         elif mode == "Linear Up":
-            scale *= self.step / max
+            scale *= frac
         elif mode == "Half Cosine Up":
-            scale *= 1.0 - math.cos((self.step / max))
+            scale *= 1.0 - math.cos(frac)
         elif mode == "Cosine Up":
-            scale *= 1.0 - math.cos((self.step / max) * 1.5707)
+            scale *= 1.0 - math.cos(frac * 1.5707)
         elif mode == "Power Up":
-            scale *= math.pow(self.step / max, self.sched_val)
+            scale *= math.pow(frac, self.sched_val)
         elif mode == "Power Down":
-            scale *= 1.0 - math.pow(self.step / max, self.sched_val)
+            scale *= 1.0 - math.pow(frac, self.sched_val)
         elif mode == "Linear Repeating":
-            portion = ((self.step / max) * self.sched_val) % 1.0
+            portion = (frac * self.sched_val) % 1.0
             scale *= (0.5 - portion) * 2 if portion < 0.5 else (portion - 0.5) * 2
         elif mode == "Cosine Repeating":
-            scale *= math.cos((self.step / max) * 6.28318 * self.sched_val) * 0.5 + 0.5
+            scale *= math.cos(frac * 6.28318 * self.sched_val) * 0.5 + 0.5
         elif mode == "Sawtooth":
-            scale *= ((self.step / max) * self.sched_val) % 1.0
+            scale *= (frac * self.sched_val) % 1.0
         scale += min
         return scale
 
@@ -155,7 +156,7 @@ class DynThresh:
             maxR, maxG, maxB, maxW = resRGB[0][0].max(), resRGB[0][1].max(), resRGB[0][2].max(), resRGB[0][3].max()
             maxRGB = max(maxR, maxG, maxB)
             print(f"test max = r={maxR}, g={maxG}, b={maxB}, w={maxW}, rgb={maxRGB}")
-            if self.step / (self.maxSteps - 1) > 0.2:
+            if self.step / (self.max_steps - 1) > 0.2:
                 if maxRGB < 2.0 and maxW < 3.0:
                     resRGB /= maxRGB / 2.4
             else:
