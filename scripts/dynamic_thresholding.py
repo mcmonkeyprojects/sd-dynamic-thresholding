@@ -212,6 +212,8 @@ class CustomCFGDenoiser(cfgdenoisekdiff):
         weights = torch.tensor(conds_list, device=uncond.device).select(2, 1)
         weights = weights.reshape(*weights.shape, 1, 1, 1)
         self.main_class.step = self.step
+        if self.total_steps:
+            self.main_class.max_steps = self.total_steps
 
         if self.main_class.experiment_mode >= 4 and self.main_class.experiment_mode <= 5:
             # https://arxiv.org/pdf/2305.08891.pdf "Rescale CFG". It's not good, but if you want to test it, just set experiment_mode = 4 + phi.
