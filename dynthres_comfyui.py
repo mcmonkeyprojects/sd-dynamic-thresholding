@@ -34,8 +34,8 @@ class DynamicThresholdingComfyNode:
             cond = input - args["cond"]
             uncond = input - args["uncond"]
             cond_scale = args["cond_scale"]
-            time_step = args["timestep"]
-            dynamic_thresh.step = 999 - time_step[0]
+            time_step = model.model.model_sampling.timestep(args["sigma"])
+            dynamic_thresh.step = 999 - time_step
 
             return input - dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
 
@@ -68,8 +68,8 @@ class DynamicThresholdingSimpleComfyNode:
             cond = input - args["cond"]
             uncond = input - args["uncond"]
             cond_scale = args["cond_scale"]
-            time_step = args["timestep"]
-            dynamic_thresh.step = 999 - time_step[0]
+            time_step = model.model.model_sampling.timestep(args["sigma"])
+            dynamic_thresh.step = 999
 
             return input - dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
 
