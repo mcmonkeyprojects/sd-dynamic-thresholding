@@ -49,7 +49,7 @@ class Script(scripts.Script):
         with gr.Accordion("Dynamic Thresholding (CFG Scale Fix)", open=False, elem_id="dynthres_" + ("img2img" if is_img2img else "txt2img")):
             with gr.Row():
                 enabled = gr.Checkbox(value=False, label="Enable Dynamic Thresholding (CFG Scale Fix)", elem_classes=["dynthres-enabled"], elem_id='dynthres_enabled')
-            with gr.Group(visible=False) as accordion:
+            with gr.Group():
                 gr.HTML(value=f"View <a style=\"border-bottom: 1px #00ffff dotted;\" href=\"https://github.com/mcmonkeyprojects/sd-dynamic-thresholding/wiki/Usage-Tips\">the wiki for usage tips.</a><br><br>", elem_id='dynthres_wiki_link')
                 mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0, elem_id='dynthres_mimic_scale')
                 with gr.Accordion("Advanced Options", open=False, elem_id='dynthres_advanced_opts'):
@@ -73,13 +73,11 @@ class Script(scripts.Script):
         mimic_mode.change(should_show_scheduler_value, inputs=[cfg_mode, mimic_mode], outputs=[sched_val, mimic_scale_min, cfg_scale_min])
         enabled.change(
             _js="dynthres_update_enabled",
-            fn=lambda x, y: {"visible": x, "__type__": "update"},
+            fn=None,
             inputs=[enabled, dtrue if is_img2img else dfalse],
-            outputs=[accordion],
             show_progress = False)
         self.infotext_fields = (
             (enabled, lambda d: gr.Checkbox.update(value="Dynamic thresholding enabled" in d)),
-            (accordion, lambda d: gr.Accordion.update(visible="Dynamic thresholding enabled" in d)),
             (mimic_scale, "Mimic scale"),
             (separate_feature_channels, "Separate Feature Channels"),
             (scaling_startpoint, lambda d: gr.Radio.update(value=d.get("Scaling Startpoint", "MEAN"))),
