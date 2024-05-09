@@ -232,7 +232,7 @@ class CustomCFGDenoiser(cfgdenoisekdiff):
 ######################### XYZ Plot Script Support logic #########################
 
 def make_axis_options():
-    xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ == "xyz_grid.py"][0].module
+    xyz_grid = [x for x in scripts.scripts_data if x.script_class.__module__ in ("xyz_grid.py", "scripts.xyz_grid")][0].module
     def apply_mimic_scale(p, x, xs):
         if x != 0:
             setattr(p, "dynthres_enabled", True)
