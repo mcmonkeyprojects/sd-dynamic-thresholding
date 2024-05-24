@@ -1,0 +1,13 @@
+[project]
+name = "sd-dynamic-thresholding"
+description = "Adds nodes for Dynamic Thresholding, CFG scheduling, and related techniques"
+version = "1.0.0"
+license = "LICENSE"
+
+[project.urls]
+Repository = "https://github.com/mcmonkeyprojects/sd-dynamic-thresholding"
+
+[tool.comfy]
+PublisherId = "mcmonkey"
+DisplayName = "Dynamic Thresholding"
+Icon = ""
