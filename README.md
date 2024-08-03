@@ -35,7 +35,7 @@ View at <https://sd.mcmonkey.org/dynthresh/>.
 
 ### Installation and Usage
 
-#### StableSwarmUI
+#### SwarmUI
 
 - Supported out-of-the-box on default installations.
     - If using a custom installation, just make sure the backend you use has this repo installed per the instructions specific to the backend as written below.
