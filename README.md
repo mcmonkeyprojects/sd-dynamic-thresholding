@@ -2,7 +2,7 @@
 
 ### Concept
 
-Extension for [StableSwarmUI](https://github.com/Stability-AI/StableSwarmUI), [ComfyUI](https://github.com/comfyanonymous/ComfyUI), and [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) that enables a way to use higher CFG Scales without color issues.
+Extension for [SwarmUI](https://github.com/mcmonkeyprojects/SwarmUI), [ComfyUI](https://github.com/comfyanonymous/ComfyUI), and [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) that enables a way to use higher CFG Scales without color issues.
 
 This works by clamping latents between steps. You can read more [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/3962) or [here](https://github.com/AUTOMATIC1111/stable-diffusion-webui/issues/3268) or [this tweet](https://twitter.com/Birchlabs/status/1582165379832348672).
 
@@ -10,7 +10,7 @@ This works by clamping latents between steps. You can read more [here](https://g
 
 ### Credit
 
-The core functionality of this PR was originally developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an Auto WebUI extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva), further development and research done by [mcmonkey4eva](https://github.com/mcmonkey4eva) and JDMLeverton. Ported by ComfyUI by [TwoDukes](https://github.com/TwoDukes) and [mcmonkey4eva](https://github.com/mcmonkey4eva). Ported to StableSwarmUI by [mcmonkey4eva](https://github.com/mcmonkey4eva).
+The core functionality of this PR was originally developed by [Birch-san](https://github.com/Birch-san) and ported to the WebUI by [dtan3847](https://github.com/dtan3847), then converted to an Auto WebUI extension and given a UI by [mcmonkey4eva](https://github.com/mcmonkey4eva), further development and research done by [mcmonkey4eva](https://github.com/mcmonkey4eva) and JDMLeverton. Ported by ComfyUI by [TwoDukes](https://github.com/TwoDukes) and [mcmonkey4eva](https://github.com/mcmonkey4eva). Ported to SwarmUI by [mcmonkey4eva](https://github.com/mcmonkey4eva).
 
 --------------
 
