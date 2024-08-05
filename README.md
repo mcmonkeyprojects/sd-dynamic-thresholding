@@ -44,7 +44,7 @@ View at <https://sd.mcmonkey.org/dynthresh/>.
 #### Auto WebUI
 
 - You must have the [AUTOMATIC1111 Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) already installed and working. Refer to that project's readme for help with that.
-- Open the WebUI, go to to the `Extensions` tab
+- Open the WebUI, go to the `Extensions` tab
 - -EITHER- Option **A**:
     - go to the `Available` tab with
     - click `Load from` (with the default list)
