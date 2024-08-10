@@ -38,7 +38,10 @@ class DynamicThresholdingComfyNode:
             time_step = time_step[0].item()
             dynamic_thresh.step = 999 - time_step
 
-            return input - dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
+            if cond_scale == mimic_scale:
+                return input - (uncond + (cond - uncond) * cond_scale)
+            else:
+                return input - dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
 
         m = model.clone()
         m.set_model_sampler_cfg_function(sampler_dyn_thresh)
@@ -73,7 +76,10 @@ class DynamicThresholdingSimpleComfyNode:
             time_step = time_step[0].item()
             dynamic_thresh.step = 999 - time_step
 
-            return input - dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
+            if cond_scale == mimic_scale:
+                return input - (uncond + (cond - uncond) * cond_scale)
+            else:
+                return input - dynamic_thresh.dynthresh(cond, uncond, cond_scale, None)
 
         m = model.clone()
         m.set_model_sampler_cfg_function(sampler_dyn_thresh)
