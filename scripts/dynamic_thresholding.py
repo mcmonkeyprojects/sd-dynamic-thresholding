@@ -14,6 +14,7 @@ import gradio as gr
 import torch, traceback
 import dynthres_core
 from modules import scripts, script_callbacks, sd_samplers, sd_samplers_compvis, sd_samplers_common
+from modules.ui_components import InputAccordion
 try:
     import dynthres_unipc
 except Exception as e:
@@ -46,9 +47,7 @@ class Script(scripts.Script):
         # "Dynamic Thresholding (CFG Scale Fix)"
         dtrue = gr.Checkbox(value=True, visible=False)
         dfalse = gr.Checkbox(value=False, visible=False)
-        with gr.Accordion("Dynamic Thresholding (CFG Scale Fix)", open=False, elem_id="dynthres_" + ("img2img" if is_img2img else "txt2img")):
-            with gr.Row():
-                enabled = gr.Checkbox(value=False, label="Enable Dynamic Thresholding (CFG Scale Fix)", elem_classes=["dynthres-enabled"], elem_id='dynthres_enabled')
+        with InputAccordion(label="Dynamic Thresholding (CFG Scale Fix)", value=False, elem_id="dynthres_" + ("img2img" if is_img2img else "txt2img")) as enabled:
             with gr.Group():
                 gr.HTML(value=f"View <a style=\"border-bottom: 1px #00ffff dotted;\" href=\"https://github.com/mcmonkeyprojects/sd-dynamic-thresholding/wiki/Usage-Tips\">the wiki for usage tips.</a><br><br>", elem_id='dynthres_wiki_link')
                 mimic_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.5, label='Mimic CFG Scale', value=7.0, elem_id='dynthres_mimic_scale')
